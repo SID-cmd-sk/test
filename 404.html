@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 — Sidharth Portfolio</title>
+  <meta http-equiv="refresh" content="4;url=/sidharth-portfolio/" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <style>
+    :root { --neon:#00c8ff; --bg:#050810; --text:#d0e4f7; --text-dim:#6a8aaa; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; display:flex; align-items:center; justify-content:center; min-height:100vh; flex-direction:column; gap:1.5rem; text-align:center; padding:2rem; }
+    h1 { font-family:'Orbitron',monospace; font-size:clamp(4rem,12vw,8rem); font-weight:800; color:var(--neon); text-shadow:0 0 40px rgba(0,200,255,0.5); line-height:1; }
+    p { color:var(--text-dim); font-size:0.85rem; letter-spacing:2px; }
+    a { color:var(--neon); border:1px solid var(--neon); padding:0.6rem 1.5rem; border-radius:6px; font-size:0.75rem; letter-spacing:2px; text-decoration:none; transition:all 0.3s; display:inline-block; margin-top:0.5rem; }
+    a:hover { background:var(--neon); color:#000; }
+    .bar { width:180px; height:2px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; margin:0 auto; }
+    .fill { height:100%; background:var(--neon); animation:fill 4s linear forwards; }
+    @keyframes fill { from{width:0} to{width:100%} }
+  </style>
+</head>
+<body>
+  <h1>404</h1>
+  <p>PAGE NOT FOUND — REDIRECTING IN 4s</p>
+  <div class="bar"><div class="fill"></div></div>
+  <a href="/sidharth-portfolio/">← RETURN HOME</a>
+</body>
+</html>
