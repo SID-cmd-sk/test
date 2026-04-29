@@ -15,11 +15,26 @@ function esc(str) {
 async function loadData() {
   try {
     const saved = localStorage.getItem('portfolio_data');
-    DATA = saved ? JSON.parse(saved) : await (await fetch('data/portfolio.json')).json();
-  } catch {
-    DATA = await (await fetch('data/portfolio.json')).json();
+    if (saved) {
+      DATA = JSON.parse(saved);
+    } else {
+      const res = await fetch('data/portfolio.json');
+      if (!res.ok) throw new Error('portfolio.json not found: ' + res.status);
+      DATA = await res.json();
+    }
+  } catch(e) {
+    console.error('loadData failed:', e);
+    // Fallback — loader always dismisses, page never gets stuck
+    DATA = {
+      meta:{ name:'Sidharth', email:'sidharthkr1859@gmail.com', phone:'7042071859',
+             location:'Badarpur, South Delhi, Delhi – 110044',
+             mapLink:'https://maps.app.goo.gl/LqedMJfe462tszBo8',
+             socialLinks:{ linkedin:'https://www.linkedin.com/in/sidharth-kumar-6a4610333', github:'https://github.com/sid-cmd-sk' }},
+      about:'Application Engineer with hands-on expertise in SolidWorks, SolidCAM, and DraftSight.',
+      skills:[], experience:[], education:[], projects:[], certifications:[]
+    };
   }
-  init();
+  init(); // Always runs — loader can never get stuck
 }
 
 /* ─── INIT ───────────────────────────────────────────────── */
@@ -256,9 +271,10 @@ function renderAbout() {
     : '—';
 
   document.getElementById('info-list').innerHTML = [
-    { icon:'📧', v:`<a href="mailto:${esc(m.email)}" style="color:inherit">${esc(m.email)}</a>` },
-    { icon:'📱', v: phoneLink },
-    { icon:'📍', v: esc(m.location) }
+    { icon:'📧', v:`<a href="mailto:${esc(m.email)}" style="color:var(--neon)">${esc(m.email)}</a>` },
+    { icon:'📱', v:`<a href="https://wa.me/91${esc(m.phone)}?text=Hi" target="_blank" rel="noopener noreferrer" style="color:var(--neon3)">+91 ${esc(m.phone)} (WhatsApp)</a>` },
+    { icon:'📍', v:`<a href="${esc(m.mapLink||'https://maps.app.goo.gl/LqedMJfe462tszBo8')}" target="_blank" rel="noopener noreferrer" style="color:var(--neon)">${esc(m.location)}</a>` },
+    { icon:'💼', v:`<a href="${esc(m.socialLinks?.linkedin||'#')}" target="_blank" rel="noopener noreferrer" style="color:var(--neon)">LinkedIn Profile →</a>` },
   ].map(i=>`<div class="info-item"><div class="info-item-icon">${i.icon}</div><span>${i.v}</span></div>`).join('');
 
   document.getElementById('skills-panel').innerHTML = DATA.skills.slice(0, 6).map(s => `
@@ -701,14 +717,12 @@ function renderContact() {
   const m = DATA.meta;
   document.getElementById('contact-items').innerHTML = [
     { icon:'📧', label:'Email',    v:`<a href="mailto:${esc(m.email)}" style="color:var(--neon)">${esc(m.email)}</a>` },
-    { icon:'📱', label:'Phone',    v:`<a href="tel:+91${esc(m.phone)}" style="color:inherit">+91 ${esc(m.phone)}</a>` },
-    { icon:'📍', label:'Location', v: esc(m.location) },
-    { icon:'💼', label:'LinkedIn', v: m.socialLinks?.linkedin && m.socialLinks.linkedin !== '#'
-        ? `<a href="${esc(m.socialLinks.linkedin)}" target="_blank" rel="noopener noreferrer" style="color:var(--neon)">View Profile →</a>`
-        : 'Add your LinkedIn URL in portfolio.json' },
+    { icon:'📱', label:'WhatsApp', v:`<a href="https://wa.me/91${esc(m.phone)}?text=Hi" target="_blank" rel="noopener noreferrer" style="color:var(--neon3)">+91 ${esc(m.phone)} — Tap to WhatsApp</a>` },
+    { icon:'📍', label:'Location', v:`<a href="${esc(m.mapLink||'https://maps.app.goo.gl/LqedMJfe462tszBo8')}" target="_blank" rel="noopener noreferrer" style="color:var(--neon)">${esc(m.location)} ↗</a>` },
+    { icon:'💼', label:'LinkedIn', v:`<a href="https://www.linkedin.com/in/sidharth-kumar-6a4610333" target="_blank" rel="noopener noreferrer" style="color:var(--neon)">sidharth-kumar-6a4610333 →</a>` },
     { icon:'🐙', label:'GitHub',   v: m.socialLinks?.github && m.socialLinks.github !== '#'
         ? `<a href="${esc(m.socialLinks.github)}" target="_blank" rel="noopener noreferrer" style="color:var(--neon)">View Profile →</a>`
-        : 'Add your GitHub URL in portfolio.json' },
+        : '<span style="color:var(--text-dim)">github.com/sid-cmd-sk</span>' },
   ].map(i => `
     <div class="contact-item">
       <div class="contact-item-icon">${i.icon}</div>

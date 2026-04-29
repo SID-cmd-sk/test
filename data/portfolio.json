@@ -2,45 +2,90 @@
   "meta": {
     "name": "Sidharth",
     "title": "Application Engineer",
-    "subtitle": "SolidWorks · SolidCAM · DraftSight · CNC Programming",
+    "subtitle": "SolidWorks \u00b7 SolidCAM \u00b7 DraftSight \u00b7 CNC Programming",
     "tagline": "Engineering precision through digital innovation",
     "email": "sidharthkr1859@gmail.com",
     "phone": "7042071859",
-    "location": "Badarpur, South Delhi, Delhi – 110044",
+    "location": "Badarpur, South Delhi, Delhi \u2013 110044",
     "socialLinks": {
-      "linkedin": "https://www.linkedin.com/in/YOUR-PROFILE",
+      "linkedin": "https://www.linkedin.com/in/sidharth-kumar-6a4610333",
       "github": "https://github.com/sid-cmd-sk"
-    }
+    },
+    "mapLink": "https://maps.app.goo.gl/LqedMJfe462tszBo8"
   },
-  "about": "Application Engineer with hands-on expertise in SolidWorks, SolidCAM, and DraftSight. Passionate about bridging the gap between digital design and physical manufacturing—from generating precision CAD models and CAM toolpaths to automating drafting workflows with AutoLISP scripts and validating G-code for CNC machines.",
+  "about": "Application Engineer with hands-on expertise in SolidWorks, SolidCAM, and DraftSight. Passionate about bridging the gap between digital design and physical manufacturing\u2014from generating precision CAD models and CAM toolpaths to automating drafting workflows with AutoLISP scripts and validating G-code for CNC machines.",
   "skills": [
-    { "name": "SolidWorks",                         "level": 95, "category": "CAD" },
-    { "name": "SolidCAM",                           "level": 90, "category": "CAM" },
-    { "name": "DraftSight",                         "level": 88, "category": "CAD" },
-    { "name": "CNC Programming (G-Code)",           "level": 82, "category": "CNC" },
-    { "name": "AutoLISP Scripting",                 "level": 75, "category": "Programming" },
-    { "name": "CAM Toolpath Generation",            "level": 87, "category": "CAM" },
-    { "name": "Engineering Drawing Interpretation", "level": 92, "category": "Design" },
-    { "name": "3D Modelling & Simulation",          "level": 88, "category": "CAD" }
+    {
+      "name": "SolidWorks",
+      "level": 95,
+      "category": "CAD"
+    },
+    {
+      "name": "SolidCAM",
+      "level": 90,
+      "category": "CAM"
+    },
+    {
+      "name": "DraftSight",
+      "level": 88,
+      "category": "CAD"
+    },
+    {
+      "name": "CNC Programming (G-Code)",
+      "level": 82,
+      "category": "CNC"
+    },
+    {
+      "name": "AutoLISP Scripting",
+      "level": 75,
+      "category": "Programming"
+    },
+    {
+      "name": "CAM Toolpath Generation",
+      "level": 87,
+      "category": "CAM"
+    },
+    {
+      "name": "Engineering Drawing Interpretation",
+      "level": 92,
+      "category": "Design"
+    },
+    {
+      "name": "3D Modelling & Simulation",
+      "level": 88,
+      "category": "CAD"
+    }
   ],
   "experience": [
     {
       "id": "exp1",
       "company": "SKS Scan tech Engg. Exim Pvt. Ltd.",
       "role": "Application Engineer",
-      "period": "Dec 2024 – Present",
+      "period": "Dec 2024 \u2013 Present",
       "type": "Full-Time",
-      "description": "Handle technical support, training, and workflow issues for SolidWorks, SolidCAM and DraftSight. Create and refine CAD models, CAM toolpaths, and CNC post processors. Build AutoLISP scripts to automate drafting tasks. Solve software–machine integration issues and validate G-code. Prepare training material, demos, and technical documentation.",
-      "highlights": ["Technical Support","CAD/CAM Training","AutoLISP Automation","G-Code Validation","Post Processor Development"]
+      "description": "Handle technical support, training, and workflow issues for SolidWorks, SolidCAM and DraftSight. Create and refine CAD models, CAM toolpaths, and CNC post processors. Build AutoLISP scripts to automate drafting tasks. Solve software\u2013machine integration issues and validate G-code. Prepare training material, demos, and technical documentation.",
+      "highlights": [
+        "Technical Support",
+        "CAD/CAM Training",
+        "AutoLISP Automation",
+        "G-Code Validation",
+        "Post Processor Development"
+      ]
     },
     {
       "id": "exp2",
       "company": "Rico Auto Industries",
-      "role": "Apprentice – Design & Machining Support",
-      "period": "May 2024 – Dec 2024",
+      "role": "Apprentice \u2013 Design & Machining Support",
+      "period": "May 2024 \u2013 Dec 2024",
       "type": "Apprenticeship",
       "description": "Reviewed and interpreted engineering drawings and CAD models before part production. Modified CAD models to improve manufacturability and machining feasibility. Worked on basic program edits (G-code). Adjusted tool offsets, zero setting, and dimensional checks. Collaborated across multiple sectors.",
-      "highlights": ["Engineering Drawing Review","CAD Model Modification","G-Code Editing","Tool Offset Adjustment","Design-to-Production Workflow"]
+      "highlights": [
+        "Engineering Drawing Review",
+        "CAD Model Modification",
+        "G-Code Editing",
+        "Tool Offset Adjustment",
+        "Design-to-Production Workflow"
+      ]
     }
   ],
   "education": [
@@ -60,77 +105,183 @@
     }
   ],
   "certifications": [
-    { "id": "c1",  "name": "SOLIDWORKS API Professional (CSWP-API)",  "issuer": "Dassault Systèmes", "level": "Professional" },
-    { "id": "c2",  "name": "SOLIDWORKS Design Professional (CSWP)",   "issuer": "Dassault Systèmes", "level": "Professional" },
-    { "id": "c3",  "name": "SOLIDWORKS Simulation Associate",         "issuer": "Dassault Systèmes", "level": "Associate" },
-    { "id": "c4",  "name": "DraftSight Specialist",                   "issuer": "Dassault Systèmes", "level": "Specialist" },
-    { "id": "c5",  "name": "3DSwymer Associate",                      "issuer": "Dassault Systèmes", "level": "Associate" },
-    { "id": "c6",  "name": "SOLIDWORKS Design Associate (CSWA)",      "issuer": "Dassault Systèmes", "level": "Associate" },
-    { "id": "c7",  "name": "SOLIDWORKS CAM Professional",             "issuer": "Dassault Systèmes", "level": "Professional" },
-    { "id": "c8",  "name": "DraftSight Associate",                    "issuer": "Dassault Systèmes", "level": "Associate" },
-    { "id": "c9",  "name": "Certified SolidCAM Academic Professional","issuer": "SolidCAM",          "level": "Professional" },
-    { "id": "c10", "name": "Certified SolidCAM Academic Associate",   "issuer": "SolidCAM",          "level": "Associate" }
+    {
+      "id": "c1",
+      "name": "SOLIDWORKS API Professional (CSWP-API)",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Professional"
+    },
+    {
+      "id": "c2",
+      "name": "SOLIDWORKS Design Professional (CSWP)",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Professional"
+    },
+    {
+      "id": "c3",
+      "name": "SOLIDWORKS Simulation Associate",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Associate"
+    },
+    {
+      "id": "c4",
+      "name": "DraftSight Specialist",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Specialist"
+    },
+    {
+      "id": "c5",
+      "name": "3DSwymer Associate",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Associate"
+    },
+    {
+      "id": "c6",
+      "name": "SOLIDWORKS Design Associate (CSWA)",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Associate"
+    },
+    {
+      "id": "c7",
+      "name": "SOLIDWORKS CAM Professional",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Professional"
+    },
+    {
+      "id": "c8",
+      "name": "DraftSight Associate",
+      "issuer": "Dassault Syst\u00e8mes",
+      "level": "Associate"
+    },
+    {
+      "id": "c9",
+      "name": "Certified SolidCAM Academic Professional",
+      "issuer": "SolidCAM",
+      "level": "Professional"
+    },
+    {
+      "id": "c10",
+      "name": "Certified SolidCAM Academic Associate",
+      "issuer": "SolidCAM",
+      "level": "Associate"
+    }
   ],
   "projects": [
     {
       "id": "p1",
       "title": "CNC Post Processor Development",
       "category": "CNC",
-      "tools": ["SolidCAM", "G-Code", "CNC"],
+      "tools": [
+        "SolidCAM",
+        "G-Code",
+        "CNC"
+      ],
       "description": "Developed and refined custom CNC post processors to translate SolidCAM toolpaths into machine-specific G-code. Ensured compatibility across multiple CNC machine configurations at client sites.",
-      "highlights": ["Custom post processor scripts", "Multi-machine compatibility", "G-code validation workflow"],
+      "highlights": [
+        "Custom post processor scripts",
+        "Multi-machine compatibility",
+        "G-code validation workflow"
+      ],
       "featured": true,
-      "photos": [], "videos": [], "model3d": null
+      "photos": [],
+      "videos": [],
+      "model3d": null
     },
     {
       "id": "p2",
       "title": "AutoLISP Drafting Automation Suite",
       "category": "Programming",
-      "tools": ["DraftSight", "AutoLISP"],
-      "description": "Built a suite of AutoLISP scripts to automate repetitive drafting tasks in DraftSight—including auto-dimensioning, layer management, and title block population—reducing manual effort by over 60%.",
-      "highlights": ["Auto-dimensioning routines", "Layer automation", "Title block population"],
+      "tools": [
+        "DraftSight",
+        "AutoLISP"
+      ],
+      "description": "Built a suite of AutoLISP scripts to automate repetitive drafting tasks in DraftSight\u2014including auto-dimensioning, layer management, and title block population\u2014reducing manual effort by over 60%.",
+      "highlights": [
+        "Auto-dimensioning routines",
+        "Layer automation",
+        "Title block population"
+      ],
       "featured": true,
-      "photos": [], "videos": [], "model3d": null
+      "photos": [],
+      "videos": [],
+      "model3d": null
     },
     {
       "id": "p3",
       "title": "CAM Toolpath Optimization",
       "category": "CAM",
-      "tools": ["SolidCAM", "SolidWorks"],
+      "tools": [
+        "SolidCAM",
+        "SolidWorks"
+      ],
       "description": "Optimized multi-axis CAM toolpaths for complex parts, reducing machining time while maintaining tight tolerances. Included tool selection strategy and feed/speed parameter tuning.",
-      "highlights": ["Multi-axis machining", "Cycle time reduction", "Tolerance validation"],
+      "highlights": [
+        "Multi-axis machining",
+        "Cycle time reduction",
+        "Tolerance validation"
+      ],
       "featured": false,
-      "photos": [], "videos": [], "model3d": null
+      "photos": [],
+      "videos": [],
+      "model3d": null
     },
     {
       "id": "p4",
       "title": "SolidWorks Training Program",
       "category": "Training",
-      "tools": ["SolidWorks", "SolidCAM"],
+      "tools": [
+        "SolidWorks",
+        "SolidCAM"
+      ],
       "description": "Designed and delivered structured training programs for engineering clients covering SolidWorks 3D modelling, assembly, drawing, and SolidCAM fundamentals. Produced comprehensive training documentation.",
-      "highlights": ["Curriculum development", "Client-facing delivery", "Technical documentation"],
+      "highlights": [
+        "Curriculum development",
+        "Client-facing delivery",
+        "Technical documentation"
+      ],
       "featured": false,
-      "photos": [], "videos": [], "model3d": null
+      "photos": [],
+      "videos": [],
+      "model3d": null
     },
     {
       "id": "p5",
       "title": "Manufacturability CAD Model Rework",
       "category": "CAD",
-      "tools": ["SolidWorks", "DraftSight"],
+      "tools": [
+        "SolidWorks",
+        "DraftSight"
+      ],
       "description": "Reviewed and modified production CAD models to improve manufacturability and reduce machining complexity, collaborating directly with the production floor team at Rico Auto Industries.",
-      "highlights": ["Design-for-manufacturing", "Part feasibility review", "Cross-team collaboration"],
+      "highlights": [
+        "Design-for-manufacturing",
+        "Part feasibility review",
+        "Cross-team collaboration"
+      ],
       "featured": false,
-      "photos": [], "videos": [], "model3d": null
+      "photos": [],
+      "videos": [],
+      "model3d": null
     },
     {
       "id": "p6",
-      "title": "Software–Machine Integration Troubleshooting",
+      "title": "Software\u2013Machine Integration Troubleshooting",
       "category": "CNC",
-      "tools": ["SolidCAM", "CNC", "G-Code"],
+      "tools": [
+        "SolidCAM",
+        "CNC",
+        "G-Code"
+      ],
       "description": "Diagnosed and resolved integration issues between CAM software and CNC machines at multiple client sites, including tool path errors, controller compatibility issues, and G-code syntax corrections.",
-      "highlights": ["Root cause analysis", "On-site troubleshooting", "G-code debugging"],
+      "highlights": [
+        "Root cause analysis",
+        "On-site troubleshooting",
+        "G-code debugging"
+      ],
       "featured": true,
-      "photos": [], "videos": [], "model3d": null
+      "photos": [],
+      "videos": [],
+      "model3d": null
     }
   ]
 }

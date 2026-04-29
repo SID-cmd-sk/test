@@ -180,6 +180,27 @@
       text-transform: uppercase;
     }
     .nav-cta:hover { background: var(--neon); color: var(--bg); box-shadow: var(--glow); }
+    .nav-login-btn {
+      font-family: var(--font-display);
+      font-size: 0.68rem;
+      letter-spacing: 2px;
+      padding: 0.5rem 1.2rem;
+      border: 1px solid rgba(123,47,255,0.6);
+      color: var(--neon2);
+      border-radius: var(--radius);
+      transition: all 0.3s;
+      text-transform: uppercase;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .nav-login-btn:hover {
+      background: var(--neon2);
+      color: #fff;
+      box-shadow: var(--glow2);
+      border-color: var(--neon2);
+    }
     .hamburger { display: none; cursor: pointer; flex-direction: column; gap: 5px; }
     .hamburger span { width: 24px; height: 2px; background: var(--neon); transition: all 0.3s; display: block; }
 
@@ -352,7 +373,7 @@
     /* ===== SECTION HEADERS ===== */
     .section-label {
       font-family: var(--font-mono);
-      font-size: 0.7rem;
+      font-size: 1rem;
       letter-spacing: 4px;
       color: var(--neon);
       text-transform: uppercase;
@@ -984,7 +1005,7 @@
 
   <!-- NAVBAR -->
   <nav id="navbar">
-    <div class="nav-logo">SIDHARTH</div>
+    <a class="nav-logo" href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" style="text-decoration:none;cursor:pointer;" aria-label="Back to top">SIDHARTH</a>
     <ul class="nav-links" id="nav-links">
       <li><a href="#about">About</a></li>
       <li><a href="#experience">Experience</a></li>
@@ -992,7 +1013,10 @@
       <li><a href="#certifications">Certs</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul>
-    <!-- Admin panel: access via /admin.html directly -->
+    <a class="nav-login-btn" href="admin.html" title="Login" aria-label="Login to dashboard">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:5px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Login
+    </a>
     <div class="hamburger" id="hamburger" role="button" aria-label="Open navigation menu" tabindex="0">
       <span></span><span></span><span></span>
     </div>
@@ -1153,7 +1177,7 @@
       <p class="footer-text">Application Engineer · CAD/CAM Specialist · <a href="mailto:sidharthkr1859@gmail.com">sidharthkr1859@gmail.com</a></p>
       <div style="display:flex;justify-content:center;gap:1rem;margin-top:1rem;" id="footer-socials">
         <a href="https://github.com/sid-cmd-sk" target="_blank" rel="noopener noreferrer" style="font-family:var(--font-mono);font-size:0.75rem;letter-spacing:1px;color:var(--text-dim);border:1px solid var(--border);padding:0.4rem 1rem;border-radius:6px;transition:all 0.3s;" onmouseover="this.style.borderColor='var(--neon)';this.style.color='var(--neon)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">🐙 GitHub</a>
-        <a href="https://www.linkedin.com/in/YOUR-PROFILE" target="_blank" rel="noopener noreferrer" style="font-family:var(--font-mono);font-size:0.75rem;letter-spacing:1px;color:var(--text-dim);border:1px solid var(--border);padding:0.4rem 1rem;border-radius:6px;transition:all 0.3s;" onmouseover="this.style.borderColor='var(--neon)';this.style.color='var(--neon)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">💼 LinkedIn</a>
+        <a href="https://www.linkedin.com/in/sidharth-kumar-6a4610333" target="_blank" rel="noopener noreferrer" style="font-family:var(--font-mono);font-size:0.75rem;letter-spacing:1px;color:var(--text-dim);border:1px solid var(--border);padding:0.4rem 1rem;border-radius:6px;transition:all 0.3s;" onmouseover="this.style.borderColor='var(--neon)';this.style.color='var(--neon)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-dim)'">💼 LinkedIn</a>
       </div>
       <p class="footer-text" style="margin-top:0.5rem; opacity:0.5">© <span id="yr"></span> Sidharth. All rights reserved.</p>
     </div>
