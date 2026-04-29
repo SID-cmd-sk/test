@@ -246,6 +246,12 @@ function initScrollProgress() {
 /* ─── HERO ───────────────────────────────────────────────── */
 function renderHero() {
   document.getElementById('hero-desc').textContent = DATA.about;
+  // Dynamic stats — auto-updates as you add more data
+  const certCount = DATA.certifications?.length || 10;
+  const projCount = DATA.projects?.length || 5;
+  const nums = document.querySelectorAll('.stat-num');
+  if (nums[0]) nums[0].textContent = certCount + '+';
+  if (nums[2]) nums[2].textContent = projCount + '+';
 }
 function triggerHeroAnimation() {
   gsap.set(['#hero-badge','#hero-name','#hero-title','#hero-desc','#hero-btns','#hero-stats'], { y: 30 });

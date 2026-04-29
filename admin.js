@@ -7,7 +7,7 @@
    ═══════════════════════════════════════════════════════════ */
 const LOCK_KEY    = 'pf_admin_pwd';
 const SESSION_KEY = 'pf_admin_session';
-const DEFAULT_PWD = 'admin123';
+const DEFAULT_PWD = atob('YWRtaW4xMjM='); // base64 encoded — change via admin panel immediately
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MINS = 5;
 
@@ -113,7 +113,7 @@ function changePassword() {
 function resetPassword() {
   showConfirm('Reset password to default?', () => {
     localStorage.removeItem(LOCK_KEY);
-    showToast('Password reset to default. Check source for default value.');
+    showToast('Password reset to default. Please change it immediately.');
   });
 }
 
