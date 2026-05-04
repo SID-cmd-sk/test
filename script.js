@@ -785,8 +785,8 @@ function centerModel(obj, camera) {
   const size   = box.getSize(new THREE.Vector3());
   obj.position.sub(center);
   const maxSize = Math.max(size.x, size.y, size.z) || 1;
-  camera.position.z = maxSize * 1000;
-  camera.position.y = maxSize * 1000;
+  camera.position.z = maxSize * 1.8;
+  camera.position.y = maxSize * 0.18;
 }
 
 function loadSTL(scene,url,THREE,cb){
