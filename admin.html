@@ -242,6 +242,7 @@
           <button onclick="lockAdmin()">🔒 Lock Panel</button>
           <button onclick="downloadJSON()" style="color:var(--neon3);">⬇ Download JSON</button>
           <button onclick="saveToStorage()" style="color:var(--neon);">💾 Save Changes</button>
+          <a href="data/media/README.md" target="_blank" style="color:var(--neon2);font-size:.7rem;">📁 Media Storage Guide</a>
         </div>
       </div>
     </aside>
@@ -301,7 +302,7 @@
           <div class="media-section">
             <div class="media-section-title">📷 Photos (optional)</div>
             <div id="photos-container"></div>
-            <button class="btn btn-ghost btn-sm" onclick="addPhotoRow()">+ Add Photo URL</button>
+            <button class="btn btn-ghost btn-sm" onclick="addPhotoRow()">+ Add Photo</button>
 
             <div class="media-section-title" style="margin-top:1.2rem;">▶ Videos (optional)</div>
             <div id="videos-container"></div>
@@ -310,7 +311,7 @@
             <div class="media-section-title" style="margin-top:1.2rem;">🔷 3D Model (optional — STL / OBJ / GLTF / GLB)</div>
             <div class="media-row" style="flex-direction:column;align-items:flex-start;gap:.6rem;">
               <div style="display:flex;gap:.6rem;width:100%;flex-wrap:wrap;">
-                <input type="text" id="model-url" placeholder="URL to .stl / .obj / .gltf / .glb file" style="flex:1;" />
+                <input type="text" id="model-url" placeholder="URL or file path (e.g. models/bracket.stl)" style="flex:1;" />
                 <select id="model-format" style="width:110px;">
                   <option value="">Auto-detect</option>
                   <option value="stl">STL</option>
@@ -319,8 +320,12 @@
                   <option value="glb">GLB</option>
                 </select>
               </div>
-              <p style="font-size:.72rem;color:var(--text-dim);line-height:1.6;">
-                ℹ️ Host your 3D file on GitHub, Google Drive (direct link), or any public URL. Visitors can rotate/zoom but <strong style="color:var(--neon);">cannot download</strong>. STL and OBJ are parsed client-side; GLTF/GLB requires CDN-hosted files.
+              <div style="display:flex;gap:.6rem;width:100%;flex-wrap:wrap;">
+                <input type="file" id="model-file" accept=".stl,.obj,.gltf,.glb,model/gltf-binary,model/gltf+json" onchange="handle3DFileUpload(event)" />
+              </div>
+              <p style="font-size:.72rem;color:var(--text-dim);line-height:1.7;background:rgba(123,47,255,.06);border:1px solid rgba(123,47,255,.2);border-radius:6px;padding:.7rem;">
+                <strong style="color:var(--neon2);">SolidWorks users:</strong> Export your part via <em>File → Save As → STL</em> (Binary format, recommended) or <em>OBJ</em>. Native .sldprt/.sldasm files are not supported in browser.<br/>
+                Max file size: 10MB. Place large files in <code style="color:var(--neon);">data/media/models/</code> folder and paste the path.
               </p>
             </div>
           </div>
@@ -387,6 +392,8 @@
             <div class="form-group"><label>Level</label>
               <select id="cert-level"><option>Professional</option><option>Associate</option><option>Specialist</option></select>
             </div>
+            <div class="form-group full"><label>Certificate Image URL (optional)</label><input type="text" id="cert-image" placeholder="Paste URL or use file picker below" /></div>
+            <div class="form-group full"><label>Upload Certificate Image (optional)</label><input type="file" id="cert-image-file" accept="image/*" onchange="handleCertImageUpload(event)" /></div>
           </div>
           <div class="form-actions"><button class="btn btn-primary" onclick="addCert()">Add</button></div>
         </div>

@@ -3,12 +3,20 @@ gsap.registerPlugin(ScrollTrigger);
 let DATA = {};
 let viewer3D = null;
 let currentProject = null;
+let mediaKeyHandler = null;
 
 /* ─── SANITIZE HELPER (XSS prevention) ──────────────────── */
 function esc(str) {
   return String(str ?? '')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function mediaUrl(url) {
+  if (!url) return '';
+  // data: URLs (base64), absolute URLs, and explicit paths pass through unchanged
+  if (/^(https?:)?\/\//i.test(url) || url.startsWith('/') || url.startsWith('./') || url.startsWith('../') || url.startsWith('data:')) return url;
+  return `data/media/${url}`;
 }
 
 /* ─── DATA LOAD ──────────────────────────────────────────── */
@@ -250,8 +258,9 @@ function renderHero() {
   const certCount = DATA.certifications?.length || 10;
   const projCount = DATA.projects?.length || 5;
   const nums = document.querySelectorAll('.stat-num');
-  if (nums[0]) nums[0].textContent = certCount + '+';
-  if (nums[2]) nums[2].textContent = projCount + '+';
+  // Initialize stats at 0 — animateCounter will count up during reveal animation
+  if (nums[0]) nums[0].textContent = '0+';
+  if (nums[2]) nums[2].textContent = '0+';
 }
 function triggerHeroAnimation() {
   gsap.set(['#hero-badge','#hero-name','#hero-title','#hero-desc','#hero-btns','#hero-stats'], { y: 30 });
@@ -262,8 +271,27 @@ function triggerHeroAnimation() {
     .to('#hero-title',  { opacity:1, y:0, duration:.6, ease:'power3.out' }, .4)
     .to('#hero-desc',   { opacity:1, y:0, duration:.6, ease:'power3.out' }, .52)
     .to('#hero-btns',   { opacity:1, y:0, duration:.6, ease:'power3.out' }, .62)
-    .to('#hero-stats',  { opacity:1, y:0, duration:.6, ease:'power3.out' }, .72)
+    .to('#hero-stats',  { opacity:1, y:0, duration:.6, ease:'power3.out',
+      onStart: () => {
+        // Animate counters simultaneously with the stats reveal
+        const nums = document.querySelectorAll('.stat-num');
+        const targets = [DATA.certifications?.length || 10, 2, DATA.projects?.length || 5];
+        nums.forEach((el, i) => { if (targets[i]) animateCounter(el, targets[i]); });
+      }
+    }, .72)
     .to('#hero-visual', { opacity:1, x:0, duration:.9, ease:'power3.out' }, .3);
+}
+
+function animateCounter(el, target, duration = 1400) {
+  const start = Date.now();
+  const update = () => {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // easeOutCubic
+    el.textContent = Math.floor(eased * target) + '+';
+    if (progress < 1) requestAnimationFrame(update);
+  };
+  requestAnimationFrame(update);
 }
 
 /* ─── ABOUT ──────────────────────────────────────────────── */
@@ -362,8 +390,14 @@ function renderProjects() {
     ].filter(Boolean).join('');
 
     const thumb = hasPhoto
-      ? `<img src="${esc(p.photos[0].url)}" alt="${esc(p.title)}" style="width:100%;height:100%;object-fit:cover;opacity:.7;" loading="lazy"/>`
-      : `<div class="project-thumb-icon">${CAT_ICON[p.category] || '🔧'}</div>`;
+      ? `<img src="${esc(mediaUrl(p.photos[0].url))}" alt="${esc(p.title)}" style="width:100%;height:100%;object-fit:cover;opacity:.75;" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.project-thumb-icon').style.display='flex'"/>
+         <div class="project-thumb-icon" style="display:none;">${CAT_ICON[p.category] || '🔧'}</div>`
+      : hasVideo && p.videos[0]?.type === 'youtube'
+        ? `<img src="https://img.youtube.com/vi/${esc(p.videos[0].id)}/mqdefault.jpg" alt="${esc(p.title)}" style="width:100%;height:100%;object-fit:cover;opacity:.7;" loading="lazy" onerror="this.style.display='none';this.parentElement.querySelector('.project-thumb-icon').style.display='flex'"/>
+           <div class="project-thumb-icon" style="display:none;">▶</div>`
+        : hasVideo
+          ? `<div class="project-thumb-icon" style="font-size:2.5rem;opacity:0.5;">▶</div>`
+          : `<div class="project-thumb-icon">${CAT_ICON[p.category] || '🔧'}</div>`;
 
     // Fixed: no orphan ellipsis on short descriptions
     const shortDesc = p.description.length > 100
@@ -401,6 +435,23 @@ function renderProjects() {
   }));
 
   document.getElementById('search-input').addEventListener('input', filterProjects);
+
+  // 3D card tilt effect
+  document.querySelectorAll('.project-card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const rect = card.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const tx = ((e.clientY - cy) / (rect.height / 2)) * 7;
+      const ty = -((e.clientX - cx) / (rect.width / 2)) * 7;
+      card.style.transition = 'border-color 0.3s, box-shadow 0.3s, opacity 0.6s';
+      card.style.transform = `translateY(-6px) scale(1.01) perspective(700px) rotateX(${tx}deg) rotateY(${ty}deg)`;
+    });
+    card.addEventListener('mouseleave', () => {
+      card.style.transition = 'transform 0.5s cubic-bezier(0.23,1,0.32,1), border-color 0.4s, box-shadow 0.4s, opacity 0.6s';
+      card.style.transform = 'translateY(0px) scale(1) perspective(700px) rotateX(0deg) rotateY(0deg)';
+    });
+  });
 }
 
 function filterProjects() {
@@ -445,36 +496,130 @@ function buildModalMedia(p) {
   const hasVideo = p.videos?.length > 0;
 
   if (!has3D && !hasPhoto && !hasVideo) {
-    wrap.innerHTML = '<p style="color:var(--text-dim);font-size:.85rem;margin-top:1rem;font-style:italic;">No media attached yet.</p>';
+    wrap.innerHTML = '<p style="color:var(--text-dim);font-size:.85rem;margin-top:1.5rem;font-style:italic;text-align:center;padding:2rem 0;">No media attached yet.</p>';
     return;
   }
 
-  const tabs = [];
-  if (hasPhoto) tabs.push({ id:'photos', label:`📷 Photos (${p.photos.length})` });
-  if (hasVideo) tabs.push({ id:'videos', label:`▶ Videos (${p.videos.length})` });
-  if (has3D)    tabs.push({ id:'3d',     label:'🔷 3D Model' });
+  // Order: videos (autoplay) → photos → 3D model
+  const slides = [];
+  (p.videos || []).forEach(v => slides.push({ kind: 'video', data: v }));
+  (p.photos || []).forEach(ph => slides.push({ kind: 'photo', data: ph }));
+  if (p.model3d) slides.push({ kind: '3d', data: p.model3d });
+
+  let idx = 0;
+  const kindLabel = { video: '▶ VIDEO', photo: '📷 PHOTO', '3d': '🔷 3D MODEL' };
+
+  function stopMediaInSlide() {
+    const video = wrap.querySelector('video');
+    if (video) { try { video.pause(); video.currentTime = 0; } catch(e) {} }
+  }
+
+  function showSlide(i) {
+    stopMediaInSlide();
+    if (viewer3D && slides[idx]?.kind !== '3d') { viewer3D.dispose(); viewer3D = null; }
+    idx = i;
+    const s = slides[i];
+    const counterEl = wrap.querySelector('#media-counter');
+    if (counterEl) counterEl.textContent = `${i + 1} / ${slides.length}  ·  ${kindLabel[s.kind] || s.kind.toUpperCase()}`;
+    wrap.querySelectorAll('.slide-dot').forEach((dot, di) => {
+      dot.style.background = di === i ? 'var(--neon)' : 'rgba(255,255,255,0.2)';
+      dot.style.boxShadow  = di === i ? '0 0 8px var(--neon)' : 'none';
+      dot.style.transform  = di === i ? 'scale(1.35)' : 'scale(1)';
+    });
+    const slideWrap = wrap.querySelector('#media-slide-wrap');
+    slideWrap.style.opacity = '0';
+    slideWrap.style.transform = 'translateY(6px)';
+    requestAnimationFrame(() => {
+      if (s.kind === 'photo') {
+        slideWrap.innerHTML = `
+          <div style="border-radius:10px;overflow:hidden;background:#070b14;border:1px solid var(--border);">
+            <img src="${esc(mediaUrl(s.data.url))}" alt="${esc(s.data.caption||'Project photo')}"
+              style="width:100%;max-height:440px;object-fit:contain;display:block;background:#070b14;"
+              loading="lazy"
+              onerror="this.parentElement.innerHTML='<div style=&quot;display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-dim);font-family:var(--font-mono);font-size:.8rem;letter-spacing:1px;&quot;>Image could not be loaded</div>'" />
+            ${s.data.caption ? `<div style="font-size:.78rem;color:var(--text-dim);text-align:center;padding:.6rem 1rem;">${esc(s.data.caption)}</div>` : ''}
+          </div>`;
+      } else if (s.kind === 'video') {
+        if (s.data.type === 'youtube') {
+          slideWrap.innerHTML = `
+            <div style="position:relative;padding-bottom:56.25%;height:0;border-radius:10px;overflow:hidden;background:#070b14;">
+              <iframe src="https://www.youtube.com/embed/${esc(s.data.id)}?autoplay=1&mute=1&playsinline=1&rel=0&modestbranding=1&loop=1&playlist=${esc(s.data.id)}"
+                style="position:absolute;inset:0;width:100%;height:100%;border:0;"
+                allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+            </div>
+            ${s.data.caption ? `<p style="font-size:.78rem;color:var(--text-dim);margin-top:.5rem;text-align:center;">${esc(s.data.caption)}</p>` : ''}`;
+        } else {
+          slideWrap.innerHTML = `
+            <div style="border-radius:10px;overflow:hidden;background:#070b14;border:1px solid var(--border);">
+              <video autoplay muted loop playsinline controls
+                style="width:100%;max-height:440px;display:block;background:#070b14;"
+                onerror="this.parentElement.innerHTML='<div style=&quot;display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-dim);font-family:var(--font-mono);font-size:.8rem;&quot;>Video could not be loaded</div>'">
+                <source src="${esc(mediaUrl(s.data.url))}" />
+                Your browser does not support video.
+              </video>
+            </div>
+            ${s.data.caption ? `<p style="font-size:.78rem;color:var(--text-dim);margin-top:.5rem;text-align:center;">${esc(s.data.caption)}</p>` : ''}`;
+          const vid = slideWrap.querySelector('video');
+          if (vid) { vid.load(); vid.play().catch(() => {}); }
+        }
+      } else { // 3d model
+        slideWrap.innerHTML = `
+          <div id="viewer3d-container"
+            style="width:100%;height:500px;border-radius:10px;overflow:hidden;background:#070b14;border:1px solid var(--border);position:relative;"></div>
+          <p style="font-size:.7rem;color:var(--text-dim);margin-top:.6rem;text-align:center;letter-spacing:1px;font-family:var(--font-mono);">
+            DRAG · ROTATE &nbsp;|&nbsp; SCROLL · ZOOM &nbsp;|&nbsp; RIGHT-DRAG · PAN
+          </p>`;
+        setTimeout(() => init3DViewer(s.data), 80);
+      }
+      slideWrap.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      requestAnimationFrame(() => {
+        slideWrap.style.opacity = '1';
+        slideWrap.style.transform = 'translateY(0)';
+      });
+    });
+  }
+
+  const dotsHTML = slides.length > 1
+    ? `<div style="display:flex;gap:.6rem;justify-content:center;margin-top:1rem;">
+        ${slides.map((s, i) => `<div class="slide-dot" data-idx="${i}" style="width:8px;height:8px;border-radius:50%;cursor:pointer;transition:all .3s;background:rgba(255,255,255,0.2);flex-shrink:0;"></div>`).join('')}
+      </div>` : '';
 
   wrap.innerHTML = `
-    <div class="media-tabs">
-      ${tabs.map((t,i)=>`<button class="media-tab${i===0?' active':''}" data-tab="${t.id}">${t.label}</button>`).join('')}
-    </div>
-    <div class="media-panels">
-      ${hasPhoto ? `<div class="media-panel active" id="mpanel-photos">${buildPhotoGallery(p.photos)}</div>` : ''}
-      ${hasVideo ? `<div class="media-panel" id="mpanel-videos">${buildVideoGallery(p.videos)}</div>` : ''}
-      ${has3D ? `<div class="media-panel" id="mpanel-3d">
-        <div id="viewer3d-container" style="width:100%;height:360px;border-radius:10px;overflow:hidden;background:#070b14;border:1px solid var(--border);position:relative;"></div>
-        <p style="font-size:.72rem;color:var(--text-dim);margin-top:.5rem;text-align:center;">🖱 Drag to rotate · Scroll to zoom · Right-drag to pan · Touch supported</p>
-      </div>` : ''}
+    <div style="margin-top:1.5rem;">
+      ${slides.length > 1 ? `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;gap:.5rem;">
+          <button class="media-tab" id="media-prev" style="padding:.4rem 1rem;min-width:72px;">← Prev</button>
+          <div id="media-counter" style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);letter-spacing:1px;text-align:center;"></div>
+          <button class="media-tab" id="media-next" style="padding:.4rem 1rem;min-width:72px;">Next →</button>
+        </div>` : `
+        <div id="media-counter" style="font-family:var(--font-mono);font-size:.72rem;color:var(--text-dim);letter-spacing:1px;text-align:center;margin-bottom:.8rem;"></div>`}
+      <div id="media-slide-wrap"></div>
+      ${dotsHTML}
     </div>`;
 
-  // Safe event delegation for tabs
-  wrap.querySelector('.media-tabs')?.addEventListener('click', e => {
-    const btn = e.target.closest('.media-tab');
-    if (!btn) return;
-    switchTab(btn.dataset.tab);
-  });
-
-  if (tabs[0]?.id === '3d') setTimeout(() => init3DViewer(p.model3d), 80);
+  if (slides.length > 1) {
+    wrap.querySelector('#media-prev').onclick = () => showSlide((idx - 1 + slides.length) % slides.length);
+    wrap.querySelector('#media-next').onclick = () => showSlide((idx + 1) % slides.length);
+    wrap.querySelectorAll('.slide-dot').forEach(dot =>
+      dot.addEventListener('click', () => showSlide(parseInt(dot.dataset.idx))));
+    // Touch swipe
+    let touchStartX = 0;
+    const sw = wrap.querySelector('#media-slide-wrap');
+    sw.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    sw.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 50) showSlide(dx < 0 ? (idx + 1) % slides.length : (idx - 1 + slides.length) % slides.length);
+    });
+    // Keyboard arrow navigation
+    if (mediaKeyHandler) document.removeEventListener('keydown', mediaKeyHandler);
+    mediaKeyHandler = e => {
+      if (!document.getElementById('modal-overlay').classList.contains('active')) return;
+      if (e.key === 'ArrowLeft')  showSlide((idx - 1 + slides.length) % slides.length);
+      else if (e.key === 'ArrowRight') showSlide((idx + 1) % slides.length);
+    };
+    document.addEventListener('keydown', mediaKeyHandler);
+  }
+  showSlide(0);
 }
 
 function switchTab(id) {
@@ -596,7 +741,7 @@ function setupScene(container, modelData) {
   }, { passive:false });
 
   const fmt = (modelData?.format||'').toLowerCase();
-  const url = modelData?.url||'';
+  const url = mediaUrl(modelData?.url||'');
   if      (url.match(/\.stl$/i)||fmt==='stl')              loadSTL(scene,url,THREE,m=>centerModel(m,camera));
   else if (url.match(/\.obj$/i)||fmt==='obj')              loadOBJ(scene,url,THREE,m=>centerModel(m,camera));
   else if (url.match(/\.(gltf|glb)$/i)||fmt==='gltf'||fmt==='glb') loadGLTF(scene,url,THREE,m=>centerModel(m.scene||m,camera));
@@ -639,47 +784,114 @@ function centerModel(obj, camera) {
   const center = box.getCenter(new THREE.Vector3());
   const size   = box.getSize(new THREE.Vector3());
   obj.position.sub(center);
-  camera.position.z = Math.max(size.x, size.y, size.z) * 2.2;
+  const maxSize = Math.max(size.x, size.y, size.z) || 1;
+  camera.position.z = maxSize * 1.8;
+  camera.position.y = maxSize * 0.18;
 }
 
 function loadSTL(scene,url,THREE,cb){
-  fetch(url).then(r=>r.arrayBuffer()).then(buf=>{
-    const v=new DataView(buf),n=v.getUint32(80,true);
-    const pos=new Float32Array(n*9),nor=new Float32Array(n*9);
-    for(let i=0;i<n;i++){const o=84+i*50,nx=v.getFloat32(o,true),ny=v.getFloat32(o+4,true),nz=v.getFloat32(o+8,true);
-      for(let j=0;j<3;j++){const vo=o+12+j*12;pos[i*9+j*3]=v.getFloat32(vo,true);pos[i*9+j*3+1]=v.getFloat32(vo+4,true);pos[i*9+j*3+2]=v.getFloat32(vo+8,true);
-        nor[i*9+j*3]=nx;nor[i*9+j*3+1]=ny;nor[i*9+j*3+2]=nz;}}
-    const geo=new THREE.BufferGeometry();
-    geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('normal',new THREE.BufferAttribute(nor,3));
-    const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x00c8ff,metalness:.85,roughness:.2,side:THREE.DoubleSide}));
-    scene.add(mesh);cb(mesh);
-  }).catch(()=>buildDemoModel(scene,THREE));
+  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer(); }).then(buf=>{
+    // Detect binary vs ASCII STL
+    // Binary: 80-byte header + 4-byte count + N * 50 bytes
+    if (buf.byteLength >= 84) {
+      const view = new DataView(buf);
+      const numTri = view.getUint32(80, true);
+      if (84 + numTri * 50 === buf.byteLength && numTri > 0) {
+        // Valid binary STL
+        parseBinarySTL(buf, scene, THREE, cb); return;
+      }
+    }
+    // Try ASCII STL
+    try {
+      const text = new TextDecoder().decode(buf);
+      if (text.trimStart().toLowerCase().startsWith('solid')) {
+        parseASCIISTL(text, scene, THREE, cb); return;
+      }
+    } catch(e) {}
+    // Fallback: try binary anyway
+    parseBinarySTL(buf, scene, THREE, cb);
+  }).catch(err => {
+    const c = document.getElementById('viewer3d-container');
+    if (c) showModelError(c, 'Could not load model. Check the URL or file format.');
+  });
+}
+
+function parseBinarySTL(buf, scene, THREE, cb) {
+  const v=new DataView(buf), n=v.getUint32(80,true);
+  const pos=new Float32Array(n*9), nor=new Float32Array(n*9);
+  for(let i=0;i<n;i++){
+    const o=84+i*50, nx=v.getFloat32(o,true), ny=v.getFloat32(o+4,true), nz=v.getFloat32(o+8,true);
+    for(let j=0;j<3;j++){
+      const vo=o+12+j*12;
+      pos[i*9+j*3]=v.getFloat32(vo,true); pos[i*9+j*3+1]=v.getFloat32(vo+4,true); pos[i*9+j*3+2]=v.getFloat32(vo+8,true);
+      nor[i*9+j*3]=nx; nor[i*9+j*3+1]=ny; nor[i*9+j*3+2]=nz;
+    }
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('normal',new THREE.BufferAttribute(nor,3));
+  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x00c8ff,metalness:.85,roughness:.2,side:THREE.DoubleSide}));
+  scene.add(mesh); cb(mesh);
+}
+
+function parseASCIISTL(text, scene, THREE, cb) {
+  const posArr = [];
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts[0] === 'vertex' && parts.length >= 4) {
+      posArr.push(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
+    }
+  }
+  if (posArr.length === 0) throw new Error('No vertices found');
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posArr), 3));
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:0x00c8ff,metalness:.85,roughness:.2,side:THREE.DoubleSide}));
+  scene.add(mesh); cb(mesh);
+}
+
+function showModelError(container, msg) {
+  container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:1rem;padding:2rem;">
+    <div style="font-size:2.5rem;opacity:0.3;">🔷</div>
+    <div style="color:var(--text-dim);font-family:var(--font-mono);font-size:.75rem;letter-spacing:1px;text-align:center;line-height:1.8;">
+      ${msg}<br/>
+      <span style="color:var(--neon);opacity:.6;font-size:.65rem;">Supported: STL · OBJ · GLTF · GLB</span>
+    </div>
+  </div>`;
 }
 
 function loadOBJ(scene,url,THREE,cb){
-  fetch(url).then(r=>r.text()).then(txt=>{
+  fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); }).then(txt=>{
     const verts=[],posArr=[];txt.split('\n').forEach(line=>{const p=line.trim().split(/\s+/);
       if(p[0]==='v')verts.push([+p[1],+p[2],+p[3]]);
       if(p[0]==='f'){const idx=p.slice(1).map(x=>parseInt(x.split('/')[0])-1);
-        for(let i=1;i<idx.length-1;i++)[idx[0],idx[i],idx[i+1]].forEach(vi=>posArr.push(...verts[vi]));
+        for(let i=1;i<idx.length-1;i++)[idx[0],idx[i],idx[i+1]].forEach(vi=>posArr.push(...(verts[vi]||[0,0,0])));
       }});
+    if(posArr.length===0) throw new Error('No geometry');
     const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(new Float32Array(posArr),3));geo.computeVertexNormals();
     const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x00c8ff,metalness:.8,roughness:.25,side:THREE.DoubleSide}));
     scene.add(mesh);cb(mesh);
-  }).catch(()=>buildDemoModel(scene,THREE));
+  }).catch(()=>{
+    const c=document.getElementById('viewer3d-container');
+    if(c) showModelError(c,'Could not load OBJ file.');
+  });
 }
 
 function loadGLTF(scene,url,THREE,cb){
   if(!window.GLTFLoader){
     const s=document.createElement('script');
     s.src='https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js';
-    s.onload=()=>_gltf(scene,url,THREE,cb);s.onerror=()=>buildDemoModel(scene,THREE);
+    s.onload=()=>_gltf(scene,url,THREE,cb);
+    s.onerror=()=>{ const c=document.getElementById('viewer3d-container'); if(c) showModelError(c,'Could not load GLTFLoader.'); };
     document.head.appendChild(s);
   } else _gltf(scene,url,THREE,cb);
 }
 function _gltf(scene,url,THREE,cb){
-  try{ new THREE.GLTFLoader().load(url,g=>{scene.add(g.scene);cb(g);},undefined,()=>buildDemoModel(scene,THREE)); }
-  catch{ buildDemoModel(scene,THREE); }
+  try{ new THREE.GLTFLoader().load(url,g=>{scene.add(g.scene);cb(g);},undefined,()=>{
+    const c=document.getElementById('viewer3d-container'); if(c) showModelError(c,'Could not load GLTF/GLB file.');
+  }); }
+  catch(e){ const c=document.getElementById('viewer3d-container'); if(c) showModelError(c,'GLTF loader error.'); }
 }
 
 function buildDemoModel(scene,THREE){
@@ -701,21 +913,39 @@ function closeModal(e) {
   if (e && e.target !== document.getElementById('modal-overlay') && !e.target.classList.contains('modal-close')) return;
   document.getElementById('modal-overlay').classList.remove('active');
   document.body.style.overflow = '';
+  // Stop any playing video
+  document.querySelectorAll('#modal-media video').forEach(v => { try { v.pause(); } catch(e) {} });
+  // Dispose 3D viewer
   if (viewer3D) { viewer3D.dispose(); viewer3D = null; }
+  // Remove media key handler
+  if (mediaKeyHandler) { document.removeEventListener('keydown', mediaKeyHandler); mediaKeyHandler = null; }
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
 /* ─── CERTIFICATIONS ─────────────────────────────────────── */
 function renderCertifications() {
   document.getElementById('certs-grid').innerHTML = DATA.certifications.map(c => `
-    <div class="cert-card">
+    <div class="cert-card${c.image ? ' has-image' : ''}" ${c.image ? `onclick="openCertImage('${esc(mediaUrl(c.image))}','${esc(c.name)}')"` : ''} style="${c.image ? 'cursor:pointer;' : ''}">
       <div class="cert-icon">🏆</div>
       <div class="cert-info">
         <div class="cert-level ${c.level==='Professional'?'pro':c.level==='Specialist'?'spec':'assoc'}">${esc(c.level)}</div>
         <div class="cert-name">${esc(c.name)}</div>
         <div class="cert-issuer">${esc(c.issuer)}</div>
+        ${c.image ? '<div style="font-size:.65rem;color:var(--neon);opacity:.7;margin-top:.3rem;letter-spacing:1px;">CLICK TO VIEW</div>' : ''}
       </div>
     </div>`).join('');
+}
+
+function openCertImage(url, name) {
+  const overlay = document.getElementById('modal-overlay');
+  document.getElementById('modal-cat').textContent = 'Certification';
+  document.getElementById('modal-title').textContent = name;
+  document.getElementById('modal-tools').innerHTML = '';
+  document.getElementById('modal-desc').textContent = '';
+  document.getElementById('modal-highlights').innerHTML = '';
+  document.getElementById('modal-media').innerHTML = `<img src="${url}" alt="${name}" style="width:100%;max-height:70vh;object-fit:contain;background:#070b14;border-radius:10px;border:1px solid var(--border);" />`;
+  overlay.classList.add('active');
+  document.body.style.overflow = 'hidden';
 }
 
 /* ─── CONTACT ────────────────────────────────────────────── */

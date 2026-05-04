@@ -251,6 +251,14 @@ function renderProjectsTable() {
 
 /* Photo rows */
 let photoRows = [], videoRows = [];
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to read file.'));
+    reader.readAsDataURL(file);
+  });
+}
 
 function addPhotoRow(url='', caption='') {
   const id = Date.now() + Math.random();
@@ -258,8 +266,9 @@ function addPhotoRow(url='', caption='') {
   const div = document.createElement('div');
   div.className = 'media-row'; div.id = `photo-row-${id}`;
   div.innerHTML = `
-    <span class="media-row-label">URL</span>
-    <input type="text" value="${url}" placeholder="https://... (image URL)" class="photo-url-${id}" style="flex:2;" />
+    <span class="media-row-label">Image</span>
+    <input type="text" value="${url}" placeholder="Paste URL or use file picker" class="photo-url-${id}" style="flex:2;" />
+    <input type="file" accept="image/*" onchange="handlePhotoFileUpload(event, ${id})" style="flex:1;" />
     <input type="text" value="${caption}" placeholder="Caption (optional)" class="photo-cap-${id}" style="flex:1;" />
     <button class="btn btn-danger btn-sm" onclick="removeRow('photo-row-${id}')">✕</button>`;
   document.getElementById('photos-container').appendChild(div);
@@ -277,9 +286,45 @@ function addVideoRow(type='youtube', id='', url='', caption='') {
       <option value="direct"${type==='direct'?' selected':''}>Direct URL</option>
     </select>
     <input type="text" value="${type==='youtube'?id:url}" placeholder="${type==='youtube'?'YouTube video ID (e.g. dQw4w9WgXcQ)':'Direct video URL (.mp4)'}" class="vval-${rid}" style="flex:2;" />
+    <input type="file" accept="video/*" onchange="handleVideoFileUpload(event, ${rid})" style="flex:1;" />
     <input type="text" value="${caption}" placeholder="Caption" class="vcap-${rid}" style="flex:1;" />
     <button class="btn btn-danger btn-sm" onclick="removeRow('video-row-${rid}')">✕</button>`;
   document.getElementById('videos-container').appendChild(div);
+}
+
+async function handlePhotoFileUpload(e, rid) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) {
+    showToast('⚠️ Photo too large (max 3MB). Use a URL or compress the image.');
+    e.target.value = ''; return;
+  }
+  const urlEl = document.querySelector(`.photo-url-${rid}`);
+  try {
+    urlEl.value = await fileToDataURL(file);
+    showToast(`✅ Photo uploaded: ${file.name}`);
+  } catch {
+    showToast('Could not upload photo file.');
+  }
+}
+
+async function handleVideoFileUpload(e, rid) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) {
+    showToast('⚠️ Video too large for browser storage (max 20MB). Upload to YouTube and use the YouTube ID instead.');
+    e.target.value = ''; return;
+  }
+  const typeEl = document.querySelector(`.vtype-${rid}`);
+  const valEl = document.querySelector(`.vval-${rid}`);
+  if (typeEl) typeEl.value = 'direct';
+  toggleVideoFields(rid);
+  try {
+    valEl.value = await fileToDataURL(file);
+    showToast(`✅ Video uploaded: ${file.name}`);
+  } catch {
+    showToast('Could not upload video file.');
+  }
 }
 
 function toggleVideoFields(rid) {
@@ -330,6 +375,28 @@ function guessFormat(url) {
   const ext = url.split('.').pop().toLowerCase().split('?')[0];
   return ['stl','obj','gltf','glb'].includes(ext) ? ext : 'stl';
 }
+async function handle3DFileUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('⚠️ 3D file too large (max 10MB). Reduce polygon count or use a URL instead.');
+    e.target.value = ''; return;
+  }
+  try {
+    const dataUrl = await fileToDataURL(file);
+    document.getElementById('model-url').value = dataUrl;
+    const dot = file.name.lastIndexOf('.');
+    const ext = dot !== -1 ? file.name.slice(dot + 1).toLowerCase() : '';
+    if (['stl','obj','gltf','glb'].includes(ext)) {
+      document.getElementById('model-format').value = ext;
+      showToast(`✅ 3D file uploaded (${ext.toUpperCase()}): ${file.name}`);
+    } else {
+      showToast(`⚠️ Format "${ext}" may not be supported. Try STL, OBJ, or GLTF/GLB.`);
+    }
+  } catch {
+    showToast('Could not upload 3D file.');
+  }
+}
 
 function saveProject() {
   const title = document.getElementById('proj-title').value.trim();
@@ -369,6 +436,8 @@ function saveProject() {
 function clearProjectForm() {
   document.getElementById('proj-edit-id').value = '';
   ['proj-title','proj-desc','proj-tools','proj-highlights','model-url'].forEach(id => document.getElementById(id).value = '');
+  const modelFileEl = document.getElementById('model-file');
+  if (modelFileEl) modelFileEl.value = '';
   document.getElementById('proj-cat').value     = 'CAD';
   document.getElementById('proj-featured').value = 'false';
   document.getElementById('model-format').value  = '';
@@ -462,18 +531,53 @@ function renderCertsList() {
     <div style="display:flex;justify-content:space-between;align-items:center;padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.05);">
       <div>
         <div style="color:var(--text);font-size:.85rem;">${c.name}</div>
-        <div style="color:var(--text-dim);font-size:.72rem;">${c.issuer} · <span style="color:var(--neon);">${c.level}</span></div>
+        <div style="color:var(--text-dim);font-size:.72rem;">${c.issuer} · <span style="color:var(--neon);">${c.level}</span>${c.image?' · 📎 image':''}</div>
       </div>
       <button class="btn btn-danger btn-sm" onclick="deleteItem('certifications',${i})">Remove</button>
     </div>`).join('');
 }
 
+async function handleCertImageUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 3 * 1024 * 1024) {
+    showToast('⚠️ Image too large (max 3MB). Use a URL instead or compress the image first.');
+    e.target.value = '';
+    return;
+  }
+  try {
+    const dataUrl = await fileToDataURL(file);
+    document.getElementById('cert-image').value = dataUrl;
+    // Show preview
+    let preview = document.getElementById('cert-img-preview');
+    if (!preview) {
+      preview = document.createElement('img');
+      preview.id = 'cert-img-preview';
+      preview.style = 'max-height:100px;border-radius:6px;border:1px solid var(--border);margin-top:.5rem;display:block;';
+      document.getElementById('cert-image').parentElement.appendChild(preview);
+    }
+    preview.src = dataUrl;
+    showToast(`✅ Certificate image uploaded: ${file.name}`);
+  } catch {
+    showToast('Could not upload certificate image.');
+  }
+}
+
 function addCert() {
   const name = document.getElementById('cert-name').value.trim();
   if (!name) { showToast('Name required.'); return; }
-  DATA.certifications.push({ id:'c'+Date.now(), name, issuer: document.getElementById('cert-issuer').value.trim(), level: document.getElementById('cert-level').value });
+  DATA.certifications.push({
+    id:'c'+Date.now(),
+    name,
+    issuer: document.getElementById('cert-issuer').value.trim(),
+    level: document.getElementById('cert-level').value,
+    image: document.getElementById('cert-image').value.trim()
+  });
   saveToStorage(); renderCertsList(); renderDashboard();
   document.getElementById('cert-name').value = ''; document.getElementById('cert-issuer').value = '';
+  document.getElementById('cert-image').value = '';
+  const certFile = document.getElementById('cert-image-file');
+  if (certFile) certFile.value = '';
   showToast('✅ Certification added!');
 }
 
