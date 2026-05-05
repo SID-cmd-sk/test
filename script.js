@@ -20,7 +20,6 @@ async function initFirebase() {
     throw new Error('Firebase config not set. Using local JSON fallback.');
   }
   firebaseReady = (async () => {
-    await import('./firebase-config.js');
     const [{ initializeApp }, fs] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')

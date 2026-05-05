@@ -182,7 +182,6 @@ async function initFirebase() {
     throw new Error('Firebase not configured. Fill in firebase-config.js first.');
   }
   firebaseReady = (async () => {
-    await import('./firebase-config.js');
     const [{ initializeApp }, fs] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
@@ -464,7 +463,7 @@ async function handle3DFileUpload(e) {
   }
 }
 
-function saveProject() {
+async function saveProject() {
   const title = document.getElementById('proj-title').value.trim();
   const desc  = document.getElementById('proj-desc').value.trim();
   if (!title || !desc) { showToast('Title and description are required.'); return; }
@@ -492,11 +491,14 @@ function saveProject() {
     DATA.projects.push(project);
   }
 
-  saveToStorage();
+  showToast('⏳ Saving to Firebase…');
+  const ok = await saveToStorage();
   renderProjectsTable();
   renderDashboard();
-  clearProjectForm();
-  showToast(editId ? '✅ Project updated!' : '✅ Project added!');
+  if (ok) {
+    clearProjectForm();
+    showToast(editId ? '✅ Project updated & saved to Firebase!' : '✅ Project added & saved to Firebase!');
+  }
 }
 
 function clearProjectForm() {
@@ -555,9 +557,9 @@ function addSkill() {
   const level = parseInt(document.getElementById('skill-level').value);
   if (!name || isNaN(level)) { showToast('Name and level required.'); return; }
   DATA.skills.push({ name, level: Math.min(100, Math.max(0, level)), category: document.getElementById('skill-cat').value });
-  saveToStorage(); renderSkillsList();
+  renderSkillsList();
   document.getElementById('skill-name').value = ''; document.getElementById('skill-level').value = '';
-  showToast('✅ Skill added!');
+  saveToStorage().then(ok => showToast(ok ? '✅ Skill saved to Firebase!' : '❌ Skill save failed.'));
 }
 
 /* ─── EXPERIENCE ─────────────────────────────────────────── */
@@ -586,9 +588,9 @@ function addExperience() {
     description:document.getElementById('exp-desc').value,
     highlights: document.getElementById('exp-highlights').value.split('\n').map(h=>h.trim()).filter(Boolean),
   });
-  saveToStorage(); renderExpList(); renderDashboard();
+  saveToStorage().then(ok => showToast(ok ? '✅ Experience saved to Firebase!' : '❌ Save failed.'));
+  renderExpList(); renderDashboard();
   ['exp-company','exp-role','exp-period','exp-desc','exp-highlights'].forEach(id => document.getElementById(id).value='');
-  showToast('✅ Experience added!');
 }
 
 /* ─── CERTIFICATIONS ─────────────────────────────────────── */
@@ -637,12 +639,11 @@ function addCert() {
     level: document.getElementById('cert-level').value,
     image: document.getElementById('cert-image').value.trim()
   });
-  saveToStorage(); renderCertsList(); renderDashboard();
+  saveToStorage().then(ok => showToast(ok ? '✅ Cert saved to Firebase!' : '❌ Save failed.')); renderCertsList(); renderDashboard();
   document.getElementById('cert-name').value = ''; document.getElementById('cert-issuer').value = '';
   document.getElementById('cert-image').value = '';
   const certFile = document.getElementById('cert-image-file');
   if (certFile) certFile.value = '';
-  showToast('✅ Certification added!');
 }
 
 /* ─── META ───────────────────────────────────────────────── */
@@ -662,7 +663,7 @@ function saveMeta() {
   DATA.about         = document.getElementById('meta-about').value;
   DATA.analytics     = DATA.analytics || {};
   DATA.analytics.googleAnalyticsId = document.getElementById('meta-ga').value;
-  saveToStorage(); showToast('✅ Profile saved!');
+  saveToStorage().then(ok => showToast(ok ? '✅ Profile saved to Firebase!' : '❌ Profile save failed — check console.'));
 }
 
 /* ─── JSON EDITOR ────────────────────────────────────────── */
@@ -683,10 +684,12 @@ async function saveToStorage() {
     await initFirebase();
     await FB.fs.setDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC), DATA);
     refreshJSON();
+    return true;
   } catch (err) {
-    console.warn('Firebase save skipped:', err.message);
-    showToast('⚠️ Firebase not configured — data not saved to cloud. Download JSON to save locally.');
+    console.error('Firebase save FAILED:', err);
+    showToast('❌ Firebase save failed: ' + err.message + ' — Download JSON to save locally.');
     refreshJSON();
+    return false;
   }
 }
 function downloadJSON() {
@@ -707,7 +710,8 @@ function resetData() {
 function deleteItem(collection, index) {
   showConfirm(`Delete this ${collection.slice(0,-1)}? Cannot be undone.`, () => {
     DATA[collection].splice(index, 1);
-    saveToStorage(); renderAll(); showToast('Item deleted.');
+    saveToStorage().then(ok => showToast(ok ? '🗑️ Item deleted from Firebase.' : '❌ Delete save failed.'));
+    renderAll();
   });
 }
 
