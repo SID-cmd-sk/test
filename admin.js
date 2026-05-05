@@ -393,6 +393,7 @@ function collectVideos() {
     if (val) {
       if (type === 'youtube') videos.push({ type:'youtube', id: normalizeYouTube(val), caption: cap });
       else                    videos.push({ type:'direct',  url: val, caption: cap });
+      else                    videos.push({ type:'direct',  url: valEl?.dataset.fileData || val, caption: cap });
     }
   });
   return videos;

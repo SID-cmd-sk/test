@@ -728,6 +728,7 @@ function setupScene(container, modelData) {
   const grid = new THREE.GridHelper(8, 24, 0x00c8ff, 0x112233); grid.position.y = -1.5; scene.add(grid);
 
   let phi=Math.PI/3, theta=Math.PI/4, radius=4, panX=0, panY=0, minDistance=1, maxDistance=5000;
+  let phi=Math.PI/3, theta=Math.PI/4, radius=4, panX=0, panY=0, minDistance=0.5, maxDistance=30;
   let isDragging=false, isRight=false, lastX=0, lastY=0;
 
   renderer.domElement.addEventListener('mousedown', e => {
@@ -770,6 +771,11 @@ function setupScene(container, modelData) {
     const fit = fitModel(camera, obj, { minDistance, maxDistance });
     panX = fit.center.x; panY = fit.center.y;
     radius = fit.distance;
+    const fit = centerModel(obj, camera);
+    panX = fit.center.x; panY = fit.center.y;
+    radius = fit.distance;
+    minDistance = Math.max(0.25, fit.distance * 0.35);
+    maxDistance = Math.max(minDistance + 1, fit.distance * 4);
   };
   if      (url.match(/\.stl$/i)||fmt==='stl')              loadSTL(scene,url,THREE,m=>fitToView(m));
   else if (url.match(/\.obj$/i)||fmt==='obj')              loadOBJ(scene,url,THREE,m=>fitToView(m));
@@ -819,6 +825,7 @@ function fitModel(camera, obj, controls) {
   camera.position.z = distance;
   camera.position.y = maxSize * 0.15;
   return { center, distance: Math.max(controls.minDistance, Math.min(controls.maxDistance, distance)) };
+  return { center, distance };
 }
 
 function loadSTL(scene,url,THREE,cb){
