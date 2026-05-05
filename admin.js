@@ -238,9 +238,9 @@ async function loadData() {
   try {
     await initFirebase();
     const snap = await FB.fs.getDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC));
-    DATA = snap.exists() ? snap.data() : await (await fetch('data/portfolio.json')).json();
+    DATA = snap.exists() ? snap.data() : await (await fetch('portfolio.json')).json();
   } catch {
-    try { DATA = await (await fetch('data/portfolio.json')).json(); } catch { DATA = { meta:{}, projects:[], skills:[], experience:[], certifications:[], about:'' }; }
+    try { DATA = await (await fetch('portfolio.json')).json(); } catch { DATA = { meta:{}, projects:[], skills:[], experience:[], certifications:[], about:'' }; }
   }
   // Ensure arrays exist
   ['projects','skills','experience','certifications'].forEach(k => { if (!DATA[k]) DATA[k] = []; });

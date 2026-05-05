@@ -61,7 +61,7 @@ async function loadData() {
     if (snap.exists()) {
       DATA = snap.data();
     } else {
-      const res = await fetch('data/portfolio.json');
+      const res = await fetch('portfolio.json');
       if (!res.ok) throw new Error('portfolio.json not found: ' + res.status);
       DATA = await res.json();
     }
