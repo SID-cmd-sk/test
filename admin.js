@@ -171,10 +171,70 @@ function resetPassword() {
    DATA
    ═══════════════════════════════════════════════════════════ */
 let DATA = {};
+const DB_NAME = 'portfolio_media_db';
+const DB_VERSION = 1;
+const STORE_DATA = 'app_data';
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+function openPortfolioDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_DATA)) db.createObjectStore(STORE_DATA);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
+  });
+}
+async function idbGet(key) {
+  const db = await openPortfolioDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_DATA, 'readonly');
+    const req = tx.objectStore(STORE_DATA).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, value) {
+  const db = await openPortfolioDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_DATA, 'readwrite');
+    tx.objectStore(STORE_DATA).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('IndexedDB write failed'));
+  });
+}
+function normalizeYouTube(input) {
+  const val = (input || '').trim();
+  const m = val.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/i);
+  return m ? m[1] : val;
+}
+function isYouTubeLink(value) {
+  return /youtu\.be|youtube\.com\/watch|youtube\.com\/embed/i.test(value || '');
+}
+function compressImageFile(file, maxW = 1600, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const r = new FileReader();
+    r.onload = () => { img.src = r.result; };
+    r.onerror = () => reject(new Error('read-failed'));
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => reject(new Error('decode-failed'));
+    r.readAsDataURL(file);
+  });
+}
 
 async function loadData() {
   try {
-    const saved = localStorage.getItem('portfolio_data');
+    const saved = await idbGet('portfolio_data');
     DATA = saved ? JSON.parse(saved) : await (await fetch('data/portfolio.json')).json();
   } catch {
     try { DATA = await (await fetch('data/portfolio.json')).json(); } catch { DATA = { meta:{}, projects:[], skills:[], experience:[], certifications:[], about:'' }; }
@@ -295,13 +355,13 @@ function addVideoRow(type='youtube', id='', url='', caption='') {
 async function handlePhotoFileUpload(e, rid) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (file.size > 3 * 1024 * 1024) {
-    showToast('⚠️ Photo too large (max 3MB). Use a URL or compress the image.');
+  if (file.size > MAX_FILE_SIZE) {
+    showToast('⚠️ Photo too large (max 10MB).');
     e.target.value = ''; return;
   }
   const urlEl = document.querySelector(`.photo-url-${rid}`);
   try {
-    urlEl.value = await fileToDataURL(file);
+    urlEl.value = await compressImageFile(file);
     showToast(`✅ Photo uploaded: ${file.name}`);
   } catch {
     showToast('Could not upload photo file.');
@@ -311,8 +371,12 @@ async function handlePhotoFileUpload(e, rid) {
 async function handleVideoFileUpload(e, rid) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (file.size > 20 * 1024 * 1024) {
-    showToast('⚠️ Video too large for browser storage (max 20MB). Upload to YouTube and use the YouTube ID instead.');
+  if (!/\.mp4$/i.test(file.name) && file.type !== 'video/mp4') {
+    showToast('⚠️ Only MP4 videos are supported.');
+    e.target.value = ''; return;
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    showToast('⚠️ Video too large for browser storage (max 10MB).');
     e.target.value = ''; return;
   }
   const typeEl = document.querySelector(`.vtype-${rid}`);
@@ -320,7 +384,8 @@ async function handleVideoFileUpload(e, rid) {
   if (typeEl) typeEl.value = 'direct';
   toggleVideoFields(rid);
   try {
-    valEl.value = await fileToDataURL(file);
+    valEl.value = URL.createObjectURL(file);
+    valEl.dataset.fileData = await fileToDataURL(file);
     showToast(`✅ Video uploaded: ${file.name}`);
   } catch {
     showToast('Could not upload video file.');
@@ -358,8 +423,8 @@ function collectVideos() {
     const val    = valEl?.value.trim();
     const cap    = capEl?.value.trim() || '';
     if (val) {
-      if (type === 'youtube') videos.push({ type:'youtube', id: val, caption: cap });
-      else                    videos.push({ type:'direct',  url: val, caption: cap });
+      if (type === 'youtube') videos.push({ type:'youtube', id: normalizeYouTube(val), caption: cap });
+      else                    videos.push({ type:'direct',  url: valEl?.dataset.fileData || val, caption: cap });
     }
   });
   return videos;
@@ -614,8 +679,8 @@ function applyJSON() {
 }
 
 /* ─── STORAGE / DOWNLOAD ─────────────────────────────────── */
-function saveToStorage() {
-  localStorage.setItem('portfolio_data', JSON.stringify(DATA));
+async function saveToStorage() {
+  await idbSet('portfolio_data', JSON.stringify(DATA));
   refreshJSON();
 }
 function downloadJSON() {
@@ -628,7 +693,7 @@ function downloadJSON() {
 }
 function resetData() {
   showConfirm('Reset all data to defaults from JSON file?', () => {
-    localStorage.removeItem('portfolio_data'); location.reload();
+    idbSet('portfolio_data', '').then(() => location.reload());
   });
 }
 
