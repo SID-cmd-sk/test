@@ -171,11 +171,48 @@ function resetPassword() {
    DATA
    ═══════════════════════════════════════════════════════════ */
 let DATA = {};
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const FIREBASE_DOC = 'portfolio';
+let firebaseReady = null;
+let FB = {};
+
+async function initFirebase() {
+  if (firebaseReady) return firebaseReady;
+  firebaseReady = (async () => {
+    await import('./firebase-config.js');
+    const [{ initializeApp }, fs, st] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js')
+    ]);
+    const app = initializeApp(window.FIREBASE_CONFIG);
+    FB.db = fs.getFirestore(app);
+    FB.storage = st.getStorage(app);
+    FB.fs = fs; FB.st = st;
+  })();
+  return firebaseReady;
+}
+async function uploadToStorage(file, folder) {
+  await initFirebase();
+  const safe = `${Date.now()}_${file.name.replace(/[^\w.-]+/g, '_')}`;
+  const fileRef = FB.st.ref(FB.storage, `${folder}/${safe}`);
+  const snap = await FB.st.uploadBytes(fileRef, file);
+  return FB.st.getDownloadURL(snap.ref);
+}
+function normalizeYouTube(input) {
+  const val = (input || '').trim();
+  const m = val.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/i);
+  return m ? m[1] : val;
+}
+function isYouTubeLink(value) {
+  return /youtu\.be|youtube\.com\/watch|youtube\.com\/embed/i.test(value || '');
+}
 
 async function loadData() {
   try {
-    const saved = localStorage.getItem('portfolio_data');
-    DATA = saved ? JSON.parse(saved) : await (await fetch('data/portfolio.json')).json();
+    await initFirebase();
+    const snap = await FB.fs.getDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC));
+    DATA = snap.exists() ? snap.data() : await (await fetch('data/portfolio.json')).json();
   } catch {
     try { DATA = await (await fetch('data/portfolio.json')).json(); } catch { DATA = { meta:{}, projects:[], skills:[], experience:[], certifications:[], about:'' }; }
   }
@@ -251,14 +288,6 @@ function renderProjectsTable() {
 
 /* Photo rows */
 let photoRows = [], videoRows = [];
-function fileToDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Failed to read file.'));
-    reader.readAsDataURL(file);
-  });
-}
 
 function addPhotoRow(url='', caption='') {
   const id = Date.now() + Math.random();
@@ -295,13 +324,13 @@ function addVideoRow(type='youtube', id='', url='', caption='') {
 async function handlePhotoFileUpload(e, rid) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (file.size > 3 * 1024 * 1024) {
-    showToast('⚠️ Photo too large (max 3MB). Use a URL or compress the image.');
+  if (file.size > MAX_FILE_SIZE) {
+    showToast('⚠️ Photo too large (max 10MB).');
     e.target.value = ''; return;
   }
   const urlEl = document.querySelector(`.photo-url-${rid}`);
   try {
-    urlEl.value = await fileToDataURL(file);
+    urlEl.value = await uploadToStorage(file, 'images');
     showToast(`✅ Photo uploaded: ${file.name}`);
   } catch {
     showToast('Could not upload photo file.');
@@ -311,8 +340,12 @@ async function handlePhotoFileUpload(e, rid) {
 async function handleVideoFileUpload(e, rid) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (file.size > 20 * 1024 * 1024) {
-    showToast('⚠️ Video too large for browser storage (max 20MB). Upload to YouTube and use the YouTube ID instead.');
+  if (!/\.mp4$/i.test(file.name) && file.type !== 'video/mp4') {
+    showToast('⚠️ Only MP4 videos are supported.');
+    e.target.value = ''; return;
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    showToast('⚠️ Video too large for browser storage (max 10MB).');
     e.target.value = ''; return;
   }
   const typeEl = document.querySelector(`.vtype-${rid}`);
@@ -320,7 +353,7 @@ async function handleVideoFileUpload(e, rid) {
   if (typeEl) typeEl.value = 'direct';
   toggleVideoFields(rid);
   try {
-    valEl.value = await fileToDataURL(file);
+    valEl.value = await uploadToStorage(file, 'videos');
     showToast(`✅ Video uploaded: ${file.name}`);
   } catch {
     showToast('Could not upload video file.');
@@ -358,7 +391,7 @@ function collectVideos() {
     const val    = valEl?.value.trim();
     const cap    = capEl?.value.trim() || '';
     if (val) {
-      if (type === 'youtube') videos.push({ type:'youtube', id: val, caption: cap });
+      if (type === 'youtube') videos.push({ type:'youtube', id: normalizeYouTube(val), caption: cap });
       else                    videos.push({ type:'direct',  url: val, caption: cap });
     }
   });
@@ -383,8 +416,8 @@ async function handle3DFileUpload(e) {
     e.target.value = ''; return;
   }
   try {
-    const dataUrl = await fileToDataURL(file);
-    document.getElementById('model-url').value = dataUrl;
+    const fileUrl = await uploadToStorage(file, 'models');
+    document.getElementById('model-url').value = fileUrl;
     const dot = file.name.lastIndexOf('.');
     const ext = dot !== -1 ? file.name.slice(dot + 1).toLowerCase() : '';
     if (['stl','obj','gltf','glb'].includes(ext)) {
@@ -546,8 +579,8 @@ async function handleCertImageUpload(e) {
     return;
   }
   try {
-    const dataUrl = await fileToDataURL(file);
-    document.getElementById('cert-image').value = dataUrl;
+    const fileUrl = await uploadToStorage(file, 'images');
+    document.getElementById('cert-image').value = fileUrl;
     // Show preview
     let preview = document.getElementById('cert-img-preview');
     if (!preview) {
@@ -556,7 +589,7 @@ async function handleCertImageUpload(e) {
       preview.style = 'max-height:100px;border-radius:6px;border:1px solid var(--border);margin-top:.5rem;display:block;';
       document.getElementById('cert-image').parentElement.appendChild(preview);
     }
-    preview.src = dataUrl;
+    preview.src = fileUrl;
     showToast(`✅ Certificate image uploaded: ${file.name}`);
   } catch {
     showToast('Could not upload certificate image.');
@@ -614,8 +647,9 @@ function applyJSON() {
 }
 
 /* ─── STORAGE / DOWNLOAD ─────────────────────────────────── */
-function saveToStorage() {
-  localStorage.setItem('portfolio_data', JSON.stringify(DATA));
+async function saveToStorage() {
+  await initFirebase();
+  await FB.fs.setDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC), DATA);
   refreshJSON();
 }
 function downloadJSON() {
@@ -628,7 +662,7 @@ function downloadJSON() {
 }
 function resetData() {
   showConfirm('Reset all data to defaults from JSON file?', () => {
-    localStorage.removeItem('portfolio_data'); location.reload();
+    initFirebase().then(() => FB.fs.deleteDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC))).then(() => location.reload());
   });
 }
 
