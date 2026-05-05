@@ -171,7 +171,6 @@ function resetPassword() {
    DATA
    ═══════════════════════════════════════════════════════════ */
 let DATA = {};
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const FIREBASE_DOC = 'portfolio';
 let firebaseReady = null;
 let FB = {};
@@ -184,25 +183,32 @@ async function initFirebase() {
   }
   firebaseReady = (async () => {
     await import('./firebase-config.js');
-    const [{ initializeApp }, fs, st] = await Promise.all([
+    const [{ initializeApp }, fs] = await Promise.all([
       import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js')
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
     ]);
     const app = initializeApp(window.FIREBASE_CONFIG);
     FB.db = fs.getFirestore(app);
-    FB.storage = st.getStorage(app);
-    FB.fs = fs; FB.st = st;
+    FB.fs = fs;
   })();
   firebaseReady.catch(() => { firebaseReady = null; });
   return firebaseReady;
 }
-async function uploadToStorage(file, folder) {
-  await initFirebase();
-  const safe = `${Date.now()}_${file.name.replace(/[^\w.-]+/g, '_')}`;
-  const fileRef = FB.st.ref(FB.storage, `${folder}/${safe}`);
-  const snap = await FB.st.uploadBytes(fileRef, file);
-  return FB.st.getDownloadURL(snap.ref);
+/* ─── CLOUDINARY UPLOAD ──────────────────────────────────── */
+const CLOUDINARY_URL    = 'https://api.cloudinary.com/v1_1/dpmnce5h6/upload';
+const CLOUDINARY_PRESET = 'portfolio_upload';
+// 3D model extensions that Cloudinary cannot render — keep as manual URL input
+const MODEL_EXTS = ['stl', 'obj', 'gltf', 'glb'];
+
+async function uploadToCloudinary(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_PRESET);
+  const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
+  if (!res.ok) throw new Error(`Cloudinary error: ${res.status} ${res.statusText}`);
+  const data = await res.json();
+  if (data.error) throw new Error(`Cloudinary: ${data.error.message}`);
+  return data.secure_url;
 }
 async function addMediaDoc({ type, url, name }) {
   await initFirebase();
@@ -336,19 +342,17 @@ function addVideoRow(type='youtube', id='', url='', caption='') {
 async function handlePhotoFileUpload(e, rid) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (file.size > MAX_FILE_SIZE) {
-    showToast('⚠️ Photo too large (max 10MB).');
-    e.target.value = ''; return;
-  }
   const urlEl = document.querySelector(`.photo-url-${rid}`);
+  showToast('⏳ Uploading photo…');
   try {
-    const url = await uploadToStorage(file, 'images');
+    const url = await uploadToCloudinary(file);
     urlEl.value = url;
     await addMediaDoc({ type: 'image', url, name: file.name });
     showToast(`✅ Photo uploaded: ${file.name}`);
   } catch (err) {
-    console.error(err);
-    showToast('Could not upload photo file.');
+    console.error('Photo upload failed:', err);
+    showToast('❌ Could not upload photo. Check your connection and try again.');
+    e.target.value = '';
   }
 }
 
@@ -359,22 +363,20 @@ async function handleVideoFileUpload(e, rid) {
     showToast('⚠️ Only MP4 videos are supported.');
     e.target.value = ''; return;
   }
-  if (file.size > MAX_FILE_SIZE) {
-    showToast('⚠️ Video too large for browser storage (max 10MB).');
-    e.target.value = ''; return;
-  }
   const typeEl = document.querySelector(`.vtype-${rid}`);
-  const valEl = document.querySelector(`.vval-${rid}`);
+  const valEl  = document.querySelector(`.vval-${rid}`);
   if (typeEl) typeEl.value = 'direct';
   toggleVideoFields(rid);
+  showToast('⏳ Uploading video… this may take a moment.');
   try {
-    const url = await uploadToStorage(file, 'videos');
+    const url = await uploadToCloudinary(file);
     valEl.value = url;
     await addMediaDoc({ type: 'video', url, name: file.name });
     showToast(`✅ Video uploaded: ${file.name}`);
   } catch (err) {
-    console.error(err);
-    showToast('Could not upload video file.');
+    console.error('Video upload failed:', err);
+    showToast('❌ Could not upload video. Check your connection and try again.');
+    e.target.value = '';
   }
 }
 
@@ -429,25 +431,27 @@ function guessFormat(url) {
 async function handle3DFileUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (file.size > 10 * 1024 * 1024) {
-    showToast('⚠️ 3D file too large (max 10MB). Reduce polygon count or use a URL instead.');
-    e.target.value = ''; return;
+  const dot = file.name.lastIndexOf('.');
+  const ext = dot !== -1 ? file.name.slice(dot + 1).toLowerCase() : '';
+
+  // 3D model formats cannot be served via Cloudinary — require a direct URL
+  if (MODEL_EXTS.includes(ext)) {
+    showToast(`⚠️ 3D models (${ext.toUpperCase()}) can't be uploaded here. Host the file (e.g. GitHub raw URL) and paste the URL manually.`);
+    e.target.value = '';
+    return;
   }
+
+  // Fallback: attempt Cloudinary for unrecognised file attached to model slot
+  showToast('⏳ Uploading file…');
   try {
-    const fileUrl = await uploadToStorage(file, 'models');
+    const fileUrl = await uploadToCloudinary(file);
     await addMediaDoc({ type: 'model', url: fileUrl, name: file.name });
     document.getElementById('model-url').value = fileUrl;
-    const dot = file.name.lastIndexOf('.');
-    const ext = dot !== -1 ? file.name.slice(dot + 1).toLowerCase() : '';
-    if (['stl','obj','gltf','glb'].includes(ext)) {
-      document.getElementById('model-format').value = ext;
-      showToast(`✅ 3D file uploaded (${ext.toUpperCase()}): ${file.name}`);
-    } else {
-      showToast(`⚠️ Format "${ext}" may not be supported. Try STL, OBJ, or GLTF/GLB.`);
-    }
+    showToast(`✅ File uploaded. Paste a .stl/.obj/.glb URL for 3D viewing.`);
   } catch (err) {
-    console.error(err);
-    showToast('Could not upload 3D file.');
+    console.error('3D file upload failed:', err);
+    showToast('❌ Upload failed. Please paste a direct URL instead.');
+    e.target.value = '';
   }
 }
 
@@ -593,13 +597,9 @@ function renderCertsList() {
 async function handleCertImageUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (file.size > 3 * 1024 * 1024) {
-    showToast('⚠️ Image too large (max 3MB). Use a URL instead or compress the image first.');
-    e.target.value = '';
-    return;
-  }
+  showToast('⏳ Uploading certificate image…');
   try {
-    const fileUrl = await uploadToStorage(file, 'images');
+    const fileUrl = await uploadToCloudinary(file);
     document.getElementById('cert-image').value = fileUrl;
     // Show preview
     let preview = document.getElementById('cert-img-preview');
@@ -611,8 +611,10 @@ async function handleCertImageUpload(e) {
     }
     preview.src = fileUrl;
     showToast(`✅ Certificate image uploaded: ${file.name}`);
-  } catch {
-    showToast('Could not upload certificate image.');
+  } catch (err) {
+    console.error('Cert image upload failed:', err);
+    showToast('❌ Could not upload image. Try again or paste a URL directly.');
+    e.target.value = '';
   }
 }
 
