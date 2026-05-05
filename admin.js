@@ -203,11 +203,20 @@ const MODEL_EXTS = ['stl', 'obj', 'gltf', 'glb'];
 async function uploadToCloudinary(file) {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('upload_preset', CLOUDINARY_PRESET);
-  const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: formData });
-  if (!res.ok) throw new Error(`Cloudinary error: ${res.status} ${res.statusText}`);
+  formData.append('upload_preset', 'portfolio_upload');
+
+  const res = await fetch('https://api.cloudinary.com/v1_1/dpmnce5h6/upload', {
+    method: 'POST',
+    body: formData
+  });
+
   const data = await res.json();
-  if (data.error) throw new Error(`Cloudinary: ${data.error.message}`);
+  console.log("CLOUDINARY RESPONSE:", data); // 👈 ADD THIS
+
+  if (!res.ok || data.error) {
+    throw new Error(data.error?.message || "Upload failed");
+  }
+
   return data.secure_url;
 }
 async function addMediaDoc({ type, url, name }) {
