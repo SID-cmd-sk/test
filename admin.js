@@ -238,9 +238,9 @@ async function loadData() {
   try {
     await initFirebase();
     const snap = await FB.fs.getDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC));
-    DATA = snap.exists() ? snap.data() : await (await fetch('portfolio.json')).json();
+    DATA = snap.exists() ? snap.data() : await (await fetch('data/portfolio.json')).json();
   } catch {
-    try { DATA = await (await fetch('portfolio.json')).json(); } catch { DATA = { meta:{}, projects:[], skills:[], experience:[], certifications:[], about:'' }; }
+    try { DATA = await (await fetch('data/portfolio.json')).json(); } catch { DATA = { meta:{}, projects:[], skills:[], experience:[], certifications:[], about:'' }; }
   }
   // Ensure arrays exist
   ['projects','skills','experience','certifications'].forEach(k => { if (!DATA[k]) DATA[k] = []; });
@@ -316,32 +316,34 @@ function renderProjectsTable() {
 let photoRows = [], videoRows = [];
 
 function addPhotoRow(url='', caption='') {
-  const id = Date.now() + Math.random();
+  // Integer-only id — must be a valid CSS identifier suffix (no dots).
+  const id = `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
   photoRows.push(id);
   const div = document.createElement('div');
   div.className = 'media-row'; div.id = `photo-row-${id}`;
   div.innerHTML = `
     <span class="media-row-label">Image</span>
     <input type="text" value="${url}" placeholder="Paste URL or use file picker" class="photo-url-${id}" style="flex:2;" />
-    <input type="file" accept="image/*" onchange="handlePhotoFileUpload(event, ${id})" style="flex:1;" />
+    <input type="file" accept="image/*" onchange="handlePhotoFileUpload(event, '${id}')" style="flex:1;" />
     <input type="text" value="${caption}" placeholder="Caption (optional)" class="photo-cap-${id}" style="flex:1;" />
     <button class="btn btn-danger btn-sm" onclick="removeRow('photo-row-${id}')">✕</button>`;
   document.getElementById('photos-container').appendChild(div);
 }
 
 function addVideoRow(type='youtube', id='', url='', caption='') {
-  const rid = Date.now() + Math.random();
+  // Integer-only id — must be a valid CSS identifier suffix (no dots).
+  const rid = `${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
   videoRows.push(rid);
   const div = document.createElement('div');
   div.className = 'media-row'; div.id = `video-row-${rid}`;
   div.innerHTML = `
     <span class="media-row-label">Type</span>
-    <select class="vtype-${rid}" onchange="toggleVideoFields(${rid})">
+    <select class="vtype-${rid}" onchange="toggleVideoFields('${rid}')">
       <option value="youtube"${type==='youtube'?' selected':''}>YouTube</option>
       <option value="direct"${type==='direct'?' selected':''}>Direct URL</option>
     </select>
     <input type="text" value="${type==='youtube'?id:url}" placeholder="${type==='youtube'?'YouTube video ID (e.g. dQw4w9WgXcQ)':'Direct video URL (.mp4)'}" class="vval-${rid}" style="flex:2;" />
-    <input type="file" accept="video/*" onchange="handleVideoFileUpload(event, ${rid})" style="flex:1;" />
+    <input type="file" accept="video/*" onchange="handleVideoFileUpload(event, '${rid}')" style="flex:1;" />
     <input type="text" value="${caption}" placeholder="Caption" class="vcap-${rid}" style="flex:1;" />
     <button class="btn btn-danger btn-sm" onclick="removeRow('video-row-${rid}')">✕</button>`;
   document.getElementById('videos-container').appendChild(div);

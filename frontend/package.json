@@ -1,0 +1,7 @@
+{
+  "name": "portfolio-static",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "python3 /app/static_server.py"
+  }
+}
