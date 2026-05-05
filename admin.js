@@ -381,6 +381,26 @@ async function handlePhotoFileUpload(e, rid) {
   }
 }
 
+/* ─── VIDEO UPLOAD PROGRESS BAR ─────────────────────────── */
+function showVideoProgress(rid, pct) {
+  const barId  = `vprog-${rid}`;
+  const fillId = `vfill-${rid}`;
+  let bar = document.getElementById(barId);
+  if (!bar) {
+    // Inject below the file input row
+    const fileInput = document.querySelector(`input[onchange*="${rid}"]`);
+    const anchor = fileInput?.closest('div') || document.body;
+    bar = document.createElement('div');
+    bar.id = barId;
+    bar.style.cssText = 'margin-top:6px;height:5px;border-radius:3px;background:rgba(255,255,255,0.07);overflow:hidden;border:1px solid var(--border,#1e2a40)';
+    bar.innerHTML = `<div id="${fillId}" style="height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,#00f0ff,#7c5cfc);transition:width 0.2s ease;"></div>`;
+    anchor.appendChild(bar);
+  }
+  const fill = document.getElementById(fillId);
+  if (fill) fill.style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => bar?.remove(), 1400);
+}
+
 async function handleVideoFileUpload(e, rid) {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -388,19 +408,34 @@ async function handleVideoFileUpload(e, rid) {
     showToast('⚠️ Only MP4 videos are supported.');
     e.target.value = ''; return;
   }
+  // Cloudinary free plan: 100 MB per upload
+  const MAX_VIDEO_MB = 100;
+  if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+    showToast(`⚠️ File too large (${(file.size/1048576).toFixed(0)} MB). Max is ${MAX_VIDEO_MB} MB. Use YouTube instead.`);
+    e.target.value = ''; return;
+  }
   const typeEl = document.querySelector(`.vtype-${rid}`);
   const valEl  = document.querySelector(`.vval-${rid}`);
   if (typeEl) typeEl.value = 'direct';
   toggleVideoFields(rid);
-  showToast('⏳ Uploading video… this may take a moment.');
+  const sizeMB = (file.size / 1048576).toFixed(1);
+  showToast(`⏳ Uploading ${sizeMB} MB video… 0%`);
+  showVideoProgress(rid, 8); // instant feedback
   try {
-    const url = await uploadToCloudinary(file);
+    const url = await uploadToCloudinary(file, {
+      onProgress: pct => {
+        showToast(`⏳ Uploading video… ${pct}%`);
+        showVideoProgress(rid, pct);
+      }
+    });
     valEl.value = url;
     await addMediaDoc({ type: 'video', url, name: file.name });
+    showVideoProgress(rid, 100);
     showToast(`✅ Video uploaded: ${file.name}`);
   } catch (err) {
     console.error('Video upload failed:', err);
-    showToast('❌ Could not upload video. Check your connection and try again.');
+    document.getElementById(`vprog-${rid}`)?.remove();
+    showToast('❌ Video upload failed: ' + err.message);
     e.target.value = '';
   }
 }

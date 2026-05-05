@@ -605,10 +605,21 @@ function buildModalMedia(p) {
         }
       } else { // 3d model
         slideWrap.innerHTML = `
-          <div id="viewer3d-container"
-            style="width:100%;height:500px;border-radius:10px;overflow:hidden;background:#070b14;border:1px solid var(--border);position:relative;"></div>
+          <div style="position:relative;width:100%;">
+            <div id="viewer3d-container"
+              style="width:100%;height:500px;border-radius:10px;overflow:hidden;background:#070b14;border:1px solid var(--border);position:relative;"></div>
+            <button id="fit-view-btn" onclick="if(viewer3D&&viewer3D.fitToView)viewer3D.fitToView();" title="Fit to view"
+              style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(7,11,20,0.82);border:1px solid var(--border);
+                     color:var(--neon);font-family:var(--font-mono);font-size:.62rem;letter-spacing:1.5px;padding:.35rem .7rem;
+                     border-radius:5px;cursor:pointer;backdrop-filter:blur(6px);transition:background .2s,border-color .2s;
+                     display:flex;align-items:center;gap:.35rem;"
+              onmouseover="this.style.background='rgba(0,200,255,0.12)';this.style.borderColor='var(--neon)'"
+              onmouseout="this.style.background='rgba(7,11,20,0.82)';this.style.borderColor='var(--border)'">
+              ⊙ FIT
+            </button>
+          </div>
           <p style="font-size:.7rem;color:var(--text-dim);margin-top:.6rem;text-align:center;letter-spacing:1px;font-family:var(--font-mono);">
-            DRAG · ROTATE &nbsp;|&nbsp; SCROLL · ZOOM &nbsp;|&nbsp; RIGHT-DRAG · PAN
+            DRAG · ROTATE &nbsp;|&nbsp; SCROLL · ZOOM &nbsp;|&nbsp; RIGHT-DRAG · PAN &nbsp;|&nbsp; ⊙ FIT TO VIEW
           </p>`;
         setTimeout(() => init3DViewer(s.data), 80);
       }
@@ -812,6 +823,16 @@ function setupScene(container, modelData) {
   ro.observe(container);
 
   viewer3D = {
+    fitToView: () => {
+      if (scene.children.length) {
+        let target = null;
+        scene.traverse(obj => { if (obj.isMesh && !target) target = obj; });
+        if (target) {
+          const fit = fitModel(camera, target, { minDistance, maxDistance });
+          if (fit) { panX = 0; panY = 0; radius = fit.distance; }
+        }
+      }
+    },
     dispose: () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
