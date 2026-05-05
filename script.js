@@ -4,29 +4,22 @@ let DATA = {};
 let viewer3D = null;
 let currentProject = null;
 let mediaKeyHandler = null;
-const DB_NAME = 'portfolio_media_db';
-const DB_VERSION = 1;
-const STORE_DATA = 'app_data';
-
-function openPortfolioDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_DATA)) db.createObjectStore(STORE_DATA);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
-  });
-}
-async function idbGet(key) {
-  const db = await openPortfolioDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_DATA, 'readonly');
-    const req = tx.objectStore(STORE_DATA).get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+const FIREBASE_DOC = 'portfolio';
+let firebaseReady = null;
+let FB = {};
+async function initFirebase() {
+  if (firebaseReady) return firebaseReady;
+  firebaseReady = (async () => {
+    await import('./firebase-config.js');
+    const [{ initializeApp }, fs] = await Promise.all([
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js'),
+      import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js')
+    ]);
+    const app = initializeApp(window.FIREBASE_CONFIG);
+    FB.db = fs.getFirestore(app);
+    FB.fs = fs;
+  })();
+  return firebaseReady;
 }
 function youtubeEmbedUrl(input, autoplay = false) {
   const raw = String(input || '').trim();
@@ -46,16 +39,16 @@ function esc(str) {
 function mediaUrl(url) {
   if (!url) return '';
   // data: URLs (base64), absolute URLs, and explicit paths pass through unchanged
-  if (/^(https?:)?\/\//i.test(url) || url.startsWith('/') || url.startsWith('./') || url.startsWith('../') || url.startsWith('data:')) return url;
-  return `data/media/${url}`;
+  return url;
 }
 
 /* ─── DATA LOAD ──────────────────────────────────────────── */
 async function loadData() {
   try {
-    const saved = await idbGet('portfolio_data');
-    if (saved) {
-      DATA = JSON.parse(saved);
+    await initFirebase();
+    const snap = await FB.fs.getDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC));
+    if (snap.exists()) {
+      DATA = snap.data();
     } else {
       const res = await fetch('data/portfolio.json');
       if (!res.ok) throw new Error('portfolio.json not found: ' + res.status);
@@ -734,6 +727,7 @@ function setupScene(container, modelData) {
   const pt = new THREE.PointLight(0x00ff9d, .7, 20); pt.position.set(0,5,0); scene.add(pt);
   const grid = new THREE.GridHelper(8, 24, 0x00c8ff, 0x112233); grid.position.y = -1.5; scene.add(grid);
 
+  let phi=Math.PI/3, theta=Math.PI/4, radius=4, panX=0, panY=0, minDistance=1, maxDistance=5000;
   let phi=Math.PI/3, theta=Math.PI/4, radius=4, panX=0, panY=0, minDistance=0.5, maxDistance=30;
   let isDragging=false, isRight=false, lastX=0, lastY=0;
 
@@ -774,6 +768,9 @@ function setupScene(container, modelData) {
   const fmt = (modelData?.format||'').toLowerCase();
   const url = mediaUrl(modelData?.url||'');
   const fitToView = (obj) => {
+    const fit = fitModel(camera, obj, { minDistance, maxDistance });
+    panX = fit.center.x; panY = fit.center.y;
+    radius = fit.distance;
     const fit = centerModel(obj, camera);
     panX = fit.center.x; panY = fit.center.y;
     radius = fit.distance;
@@ -816,7 +813,7 @@ function setupScene(container, modelData) {
   };
 }
 
-function centerModel(obj, camera) {
+function fitModel(camera, obj, controls) {
   if (!obj) return;
   const box    = new THREE.Box3().setFromObject(obj);
   const center = box.getCenter(new THREE.Vector3());
@@ -827,6 +824,7 @@ function centerModel(obj, camera) {
   const distance = (maxSize / 2) / Math.tan(fov / 2) * 1.35;
   camera.position.z = distance;
   camera.position.y = maxSize * 0.15;
+  return { center, distance: Math.max(controls.minDistance, Math.min(controls.maxDistance, distance)) };
   return { center, distance };
 }
 
