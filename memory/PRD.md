@@ -19,6 +19,9 @@ Static site (HTML + vanilla JS), no build step. Deployed as static files.
 2. **[P1] Wrong fallback path** (`script.js`, `admin.js`):
    Both files did `fetch('portfolio.json')` but the file lives at `data/portfolio.json`. When Firebase was unreachable, the fallback silently failed.
    → Fixed: paths corrected to `data/portfolio.json`.
+3. **[P0] Public site showed zero data** (`index.html`):
+   `index.html` loaded `script.js` but **never loaded `firebase-config.js`**, so `window.FIREBASE_CONFIG` was undefined, `isFirebaseConfigured()` returned false, and the site always fell back to the hard-coded stub (no projects, skills, experience, education).
+   → Fixed: added `<script src="firebase-config.js"></script>` before `script.js` in `index.html`. Main site now loads the Firestore doc and renders projects, skills, experience timeline, education, certifications.
 
 ## Verified Working End-to-End
 - Photo upload → Cloudinary asset created, URL stored in form, `media` doc written to Firestore, `✅ Photo uploaded` toast.
