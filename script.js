@@ -595,7 +595,7 @@ function buildModalMedia(p) {
               <video autoplay muted playsinline controls preload="metadata" loading="lazy"
                 style="width:100%;max-height:440px;display:block;background:#070b14;"
                 onerror="this.parentElement.innerHTML='<div style=&quot;display:flex;align-items:center;justify-content:center;height:200px;color:var(--text-dim);font-family:var(--font-mono);font-size:.8rem;&quot;>Video could not be loaded</div>'">
-                <source src="${esc(mediaUrl(s.data.url))}" />
+                <source src="${esc(mediaUrl(s.data.url))}" type="video/mp4" />
                 Your browser does not support video.
               </video>
             </div>

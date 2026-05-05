@@ -199,24 +199,39 @@ const CLOUDINARY_PRESET = 'portfolio_upload';
 // 3D model extensions that Cloudinary cannot render — keep as manual URL input
 const MODEL_EXTS = ['stl', 'obj', 'gltf', 'glb'];
 
-async function uploadToCloudinary(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', 'portfolio_upload');
+async function uploadToCloudinary(file, { onProgress, resourceType = 'auto' } = {}) {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_PRESET);
+    if (resourceType !== 'auto') formData.append('resource_type', resourceType);
 
-  const res = await fetch('https://api.cloudinary.com/v1_1/dpmnce5h6/upload', {
-    method: 'POST',
-    body: formData
+    const xhr = new XMLHttpRequest();
+    const endpoint = resourceType === 'raw'
+      ? `https://api.cloudinary.com/v1_1/dpmnce5h6/raw/upload`
+      : CLOUDINARY_URL;
+
+    xhr.open('POST', endpoint);
+
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', e => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      });
+    }
+
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && !data.error) {
+          resolve(data.secure_url);
+        } else {
+          reject(new Error(data.error?.message || 'Upload failed (' + xhr.status + ')'));
+        }
+      } catch(e) { reject(new Error('Server response parse error')); }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(formData);
   });
-
-  const data = await res.json();
-  console.log("CLOUDINARY RESPONSE:", data); // 👈 ADD THIS
-
-  if (!res.ok || data.error) {
-    throw new Error(data.error?.message || "Upload failed");
-  }
-
-  return data.secure_url;
 }
 async function addMediaDoc({ type, url, name }) {
   await initFirebase();
@@ -438,29 +453,69 @@ function guessFormat(url) {
   const ext = url.split('.').pop().toLowerCase().split('?')[0];
   return ['stl','obj','gltf','glb'].includes(ext) ? ext : 'stl';
 }
+/* ─── 3D MODEL UPLOAD WITH PROGRESS ─────────────────────── */
+function show3DProgress(pct) {
+  let bar = document.getElementById('model-upload-progress');
+  if (!bar) {
+    const container = document.getElementById('model-file')?.closest('div') || document.body;
+    bar = document.createElement('div');
+    bar.id = 'model-upload-progress';
+    bar.style.cssText = [
+      'margin-top:8px','height:6px','border-radius:4px',
+      'background:rgba(255,255,255,0.08)','overflow:hidden',
+      'border:1px solid var(--border,#1e2a40)'
+    ].join(';');
+    bar.innerHTML = '<div id="model-upload-fill" style="height:100%;width:0%;border-radius:4px;background:linear-gradient(90deg,#00f0ff,#7c5cfc);transition:width 0.2s ease;"></div>';
+    container.appendChild(bar);
+  }
+  const fill = document.getElementById('model-upload-fill');
+  if (fill) fill.style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => bar.remove(), 1200);
+}
+
 async function handle3DFileUpload(e) {
   const file = e.target.files?.[0];
   if (!file) return;
   const dot = file.name.lastIndexOf('.');
   const ext = dot !== -1 ? file.name.slice(dot + 1).toLowerCase() : '';
 
-  // 3D model formats cannot be served via Cloudinary — require a direct URL
-  if (MODEL_EXTS.includes(ext)) {
-    showToast(`⚠️ 3D models (${ext.toUpperCase()}) can't be uploaded here. Host the file (e.g. GitHub raw URL) and paste the URL manually.`);
+  // Size guard — Cloudinary free tier raw limit is 10 MB
+  const MAX_MB = 10;
+  if (file.size > MAX_MB * 1024 * 1024) {
+    showToast(`⚠️ File too large (${(file.size/1048576).toFixed(1)} MB). Max is ${MAX_MB} MB.`);
     e.target.value = '';
     return;
   }
 
-  // Fallback: attempt Cloudinary for unrecognised file attached to model slot
-  showToast('⏳ Uploading file…');
+  const isModel = MODEL_EXTS.includes(ext);
+  const resourceType = isModel ? 'raw' : 'auto';
+
+  showToast('⏳ Uploading 3D model… 0%');
+  show3DProgress(10); // show immediately so user sees feedback
+
   try {
-    const fileUrl = await uploadToCloudinary(file);
+    const fileUrl = await uploadToCloudinary(file, {
+      resourceType,
+      onProgress: pct => {
+        showToast(`⏳ Uploading… ${pct}%`);
+        show3DProgress(pct);
+      }
+    });
+
     await addMediaDoc({ type: 'model', url: fileUrl, name: file.name });
     document.getElementById('model-url').value = fileUrl;
-    showToast(`✅ File uploaded. Paste a .stl/.obj/.glb URL for 3D viewing.`);
+
+    // Auto-detect format
+    const fmtEl = document.getElementById('model-format');
+    if (fmtEl && ext && ['stl','obj','gltf','glb'].includes(ext)) fmtEl.value = ext;
+
+    show3DProgress(100);
+    showToast(`✅ 3D model uploaded: ${file.name}`);
   } catch (err) {
     console.error('3D file upload failed:', err);
-    showToast('❌ Upload failed. Please paste a direct URL instead.');
+    const bar = document.getElementById('model-upload-progress');
+    if (bar) bar.remove();
+    showToast('❌ Upload failed: ' + err.message);
     e.target.value = '';
   }
 }
