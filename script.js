@@ -7,8 +7,18 @@ let mediaKeyHandler = null;
 const FIREBASE_DOC = 'portfolio';
 let firebaseReady = null;
 let FB = {};
+
+function isFirebaseConfigured() {
+  const cfg = window.FIREBASE_CONFIG;
+  return cfg && cfg.apiKey && !cfg.apiKey.startsWith('REPLACE_');
+}
+
 async function initFirebase() {
   if (firebaseReady) return firebaseReady;
+  // Don't attempt Firebase if config is placeholder — go straight to JSON fallback
+  if (!isFirebaseConfigured()) {
+    throw new Error('Firebase config not set. Using local JSON fallback.');
+  }
   firebaseReady = (async () => {
     await import('./firebase-config.js');
     const [{ initializeApp }, fs] = await Promise.all([
@@ -19,6 +29,8 @@ async function initFirebase() {
     FB.db = fs.getFirestore(app);
     FB.fs = fs;
   })();
+  // If init fails, reset so next call can retry or fall through
+  firebaseReady.catch(() => { firebaseReady = null; });
   return firebaseReady;
 }
 function youtubeEmbedUrl(input, autoplay = false) {
@@ -89,7 +101,10 @@ function init() {
 }
 
 /* ─── LOADER ─────────────────────────────────────────────── */
+let _loaderDone = false;
 function initLoader() {
+  if (_loaderDone) return; // Never run twice
+  _loaderDone = true;
   setTimeout(() => {
     document.getElementById('loader').classList.add('hidden');
     triggerHeroAnimation();
@@ -286,7 +301,10 @@ function renderHero() {
   if (nums[0]) nums[0].textContent = '0+';
   if (nums[2]) nums[2].textContent = '0+';
 }
+let _heroAnimDone = false;
 function triggerHeroAnimation() {
+  if (_heroAnimDone) return; // Guard against double-fire
+  _heroAnimDone = true;
   gsap.set(['#hero-badge','#hero-name','#hero-title','#hero-desc','#hero-btns','#hero-stats'], { y: 30 });
   gsap.set('#hero-visual', { x: 50 });
   const tl = gsap.timeline();
@@ -728,7 +746,6 @@ function setupScene(container, modelData) {
   const grid = new THREE.GridHelper(8, 24, 0x00c8ff, 0x112233); grid.position.y = -1.5; scene.add(grid);
 
   let phi=Math.PI/3, theta=Math.PI/4, radius=4, panX=0, panY=0, minDistance=1, maxDistance=5000;
-  let phi=Math.PI/3, theta=Math.PI/4, radius=4, panX=0, panY=0, minDistance=0.5, maxDistance=30;
   let isDragging=false, isRight=false, lastX=0, lastY=0;
 
   renderer.domElement.addEventListener('mousedown', e => {
@@ -771,11 +788,6 @@ function setupScene(container, modelData) {
     const fit = fitModel(camera, obj, { minDistance, maxDistance });
     panX = fit.center.x; panY = fit.center.y;
     radius = fit.distance;
-    const fit = centerModel(obj, camera);
-    panX = fit.center.x; panY = fit.center.y;
-    radius = fit.distance;
-    minDistance = Math.max(0.25, fit.distance * 0.35);
-    maxDistance = Math.max(minDistance + 1, fit.distance * 4);
   };
   if      (url.match(/\.stl$/i)||fmt==='stl')              loadSTL(scene,url,THREE,m=>fitToView(m));
   else if (url.match(/\.obj$/i)||fmt==='obj')              loadOBJ(scene,url,THREE,m=>fitToView(m));
@@ -825,7 +837,6 @@ function fitModel(camera, obj, controls) {
   camera.position.z = distance;
   camera.position.y = maxSize * 0.15;
   return { center, distance: Math.max(controls.minDistance, Math.min(controls.maxDistance, distance)) };
-  return { center, distance };
 }
 
 function loadSTL(scene,url,THREE,cb){

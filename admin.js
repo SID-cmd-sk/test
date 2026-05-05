@@ -178,6 +178,10 @@ let FB = {};
 
 async function initFirebase() {
   if (firebaseReady) return firebaseReady;
+  const cfg = window.FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey || cfg.apiKey.startsWith('REPLACE_')) {
+    throw new Error('Firebase not configured. Fill in firebase-config.js first.');
+  }
   firebaseReady = (async () => {
     await import('./firebase-config.js');
     const [{ initializeApp }, fs, st] = await Promise.all([
@@ -190,6 +194,7 @@ async function initFirebase() {
     FB.storage = st.getStorage(app);
     FB.fs = fs; FB.st = st;
   })();
+  firebaseReady.catch(() => { firebaseReady = null; });
   return firebaseReady;
 }
 async function uploadToStorage(file, folder) {
@@ -198,6 +203,13 @@ async function uploadToStorage(file, folder) {
   const fileRef = FB.st.ref(FB.storage, `${folder}/${safe}`);
   const snap = await FB.st.uploadBytes(fileRef, file);
   return FB.st.getDownloadURL(snap.ref);
+}
+async function addMediaDoc({ type, url, name }) {
+  await initFirebase();
+  await FB.fs.addDoc(FB.fs.collection(FB.db, 'media'), {
+    type, url, name,
+    created: FB.fs.serverTimestamp()
+  });
 }
 function normalizeYouTube(input) {
   const val = (input || '').trim();
@@ -330,9 +342,12 @@ async function handlePhotoFileUpload(e, rid) {
   }
   const urlEl = document.querySelector(`.photo-url-${rid}`);
   try {
-    urlEl.value = await uploadToStorage(file, 'images');
+    const url = await uploadToStorage(file, 'images');
+    urlEl.value = url;
+    await addMediaDoc({ type: 'image', url, name: file.name });
     showToast(`✅ Photo uploaded: ${file.name}`);
-  } catch {
+  } catch (err) {
+    console.error(err);
     showToast('Could not upload photo file.');
   }
 }
@@ -353,9 +368,12 @@ async function handleVideoFileUpload(e, rid) {
   if (typeEl) typeEl.value = 'direct';
   toggleVideoFields(rid);
   try {
-    valEl.value = await uploadToStorage(file, 'videos');
+    const url = await uploadToStorage(file, 'videos');
+    valEl.value = url;
+    await addMediaDoc({ type: 'video', url, name: file.name });
     showToast(`✅ Video uploaded: ${file.name}`);
-  } catch {
+  } catch (err) {
+    console.error(err);
     showToast('Could not upload video file.');
   }
 }
@@ -393,7 +411,6 @@ function collectVideos() {
     if (val) {
       if (type === 'youtube') videos.push({ type:'youtube', id: normalizeYouTube(val), caption: cap });
       else                    videos.push({ type:'direct',  url: val, caption: cap });
-      else                    videos.push({ type:'direct',  url: valEl?.dataset.fileData || val, caption: cap });
     }
   });
   return videos;
@@ -418,6 +435,7 @@ async function handle3DFileUpload(e) {
   }
   try {
     const fileUrl = await uploadToStorage(file, 'models');
+    await addMediaDoc({ type: 'model', url: fileUrl, name: file.name });
     document.getElementById('model-url').value = fileUrl;
     const dot = file.name.lastIndexOf('.');
     const ext = dot !== -1 ? file.name.slice(dot + 1).toLowerCase() : '';
@@ -427,7 +445,8 @@ async function handle3DFileUpload(e) {
     } else {
       showToast(`⚠️ Format "${ext}" may not be supported. Try STL, OBJ, or GLTF/GLB.`);
     }
-  } catch {
+  } catch (err) {
+    console.error(err);
     showToast('Could not upload 3D file.');
   }
 }
@@ -649,9 +668,15 @@ function applyJSON() {
 
 /* ─── STORAGE / DOWNLOAD ─────────────────────────────────── */
 async function saveToStorage() {
-  await initFirebase();
-  await FB.fs.setDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC), DATA);
-  refreshJSON();
+  try {
+    await initFirebase();
+    await FB.fs.setDoc(FB.fs.doc(FB.db, 'app', FIREBASE_DOC), DATA);
+    refreshJSON();
+  } catch (err) {
+    console.warn('Firebase save skipped:', err.message);
+    showToast('⚠️ Firebase not configured — data not saved to cloud. Download JSON to save locally.');
+    refreshJSON();
+  }
 }
 function downloadJSON() {
   const blob = new Blob([JSON.stringify(DATA, null, 2)], { type:'application/json' });
