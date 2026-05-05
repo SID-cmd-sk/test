@@ -199,6 +199,13 @@ async function uploadToStorage(file, folder) {
   const snap = await FB.st.uploadBytes(fileRef, file);
   return FB.st.getDownloadURL(snap.ref);
 }
+async function addMediaDoc({ type, url, name }) {
+  await initFirebase();
+  await FB.fs.addDoc(FB.fs.collection(FB.db, 'media'), {
+    type, url, name,
+    created: FB.fs.serverTimestamp()
+  });
+}
 function normalizeYouTube(input) {
   const val = (input || '').trim();
   const m = val.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/i);
@@ -330,9 +337,12 @@ async function handlePhotoFileUpload(e, rid) {
   }
   const urlEl = document.querySelector(`.photo-url-${rid}`);
   try {
-    urlEl.value = await uploadToStorage(file, 'images');
+    const url = await uploadToStorage(file, 'images');
+    urlEl.value = url;
+    await addMediaDoc({ type: 'image', url, name: file.name });
     showToast(`✅ Photo uploaded: ${file.name}`);
-  } catch {
+  } catch (err) {
+    console.error(err);
     showToast('Could not upload photo file.');
   }
 }
@@ -353,9 +363,12 @@ async function handleVideoFileUpload(e, rid) {
   if (typeEl) typeEl.value = 'direct';
   toggleVideoFields(rid);
   try {
-    valEl.value = await uploadToStorage(file, 'videos');
+    const url = await uploadToStorage(file, 'videos');
+    valEl.value = url;
+    await addMediaDoc({ type: 'video', url, name: file.name });
     showToast(`✅ Video uploaded: ${file.name}`);
-  } catch {
+  } catch (err) {
+    console.error(err);
     showToast('Could not upload video file.');
   }
 }
@@ -393,7 +406,6 @@ function collectVideos() {
     if (val) {
       if (type === 'youtube') videos.push({ type:'youtube', id: normalizeYouTube(val), caption: cap });
       else                    videos.push({ type:'direct',  url: val, caption: cap });
-      else                    videos.push({ type:'direct',  url: valEl?.dataset.fileData || val, caption: cap });
     }
   });
   return videos;
@@ -418,6 +430,7 @@ async function handle3DFileUpload(e) {
   }
   try {
     const fileUrl = await uploadToStorage(file, 'models');
+    await addMediaDoc({ type: 'model', url: fileUrl, name: file.name });
     document.getElementById('model-url').value = fileUrl;
     const dot = file.name.lastIndexOf('.');
     const ext = dot !== -1 ? file.name.slice(dot + 1).toLowerCase() : '';
@@ -427,7 +440,8 @@ async function handle3DFileUpload(e) {
     } else {
       showToast(`⚠️ Format "${ext}" may not be supported. Try STL, OBJ, or GLTF/GLB.`);
     }
-  } catch {
+  } catch (err) {
+    console.error(err);
     showToast('Could not upload 3D file.');
   }
 }
